@@ -35,6 +35,10 @@ Route::prefix('admin')->group(function () {
     })->name('admin.home');
 
     Route::middleware('auth:admin')->group(function () {
+
+        // Category selection — shown after login before applicant form
+        Route::get('applicants/select-category', [AdminController::class, 'selectCategory'])->name('admin.applicants.select_category');
+
         // Applicant routes
         Route::get('applicants/create', [\App\Http\Controllers\AdminApplicantController::class, 'create'])->name('admin.applicants.create');
         Route::post('applicants', [\App\Http\Controllers\AdminApplicantController::class, 'store'])->name('admin.applicants.store');

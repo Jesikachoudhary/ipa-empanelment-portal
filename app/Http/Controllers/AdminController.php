@@ -6,12 +6,28 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Admin;
+use App\Models\Applicant;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
         return view('admin.dashboard');
+    }
+
+    /**
+     * Show category selection page before applicant form.
+     */
+    public function selectCategory()
+    {
+        // If admin already has an application, send them to edit it directly
+        $existing = Applicant::where('admin_id', auth('admin')->id())->first();
+        if ($existing) {
+            return redirect()->route('admin.applicants.edit', $existing)
+                ->with('info', 'You already submitted an application. You can view or edit it here.');
+        }
+
+        return view('admin.applicants.select_category');
     }
 
     /**
@@ -50,7 +66,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password' => 'required|confirmed|min:6',
+            'password'         => 'required|confirmed|min:8',
         ]);
 
         $admin = Auth::guard('admin')->user();
