@@ -64,7 +64,7 @@ class AdminAuthController extends Controller
         // Pass optional query params `email` and `code` to the view so the form can be prefilled
         return view('admin.verify', [
             'email' => $request->query('email'),
-            'code'  => $request->query('code'),
+            'code' => $request->query('code'),
         ]);
     }
 
@@ -72,7 +72,7 @@ class AdminAuthController extends Controller
     {
         $data = $request->validate([
             'email' => 'required|email',
-            'code'  => 'required|string',
+            'code' => 'required|string',
         ]);
 
         $admin = Admin::where('email', $data['email'])->first();
@@ -100,14 +100,14 @@ class AdminAuthController extends Controller
     public function register(Request $request)
     {
         $data = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:admins,email',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:admins,email',
             'password' => 'required|confirmed|min:8',
         ]);
 
         $admin = Admin::create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
+            'name' => $data['name'],
+            'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
