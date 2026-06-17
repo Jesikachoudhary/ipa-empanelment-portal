@@ -1,0 +1,124 @@
+@media (max-width: 575px) {
+    .wrapper{
+        overflow: hidden;
+    }
+    #hero {
+        .slider {
+        .slider_form {
+            bottom: -105px;
+        }
+        }
+    }
+    .why-choose-us {
+        .common-cnt {
+        .btn-primary {
+            display: block;
+            margin-bottom: 15px !important;
+        }
+        }
+    }
+    .service-section {
+        .services-btn-grp {
+        .service-btn {
+            width: calc(100% - 0px);
+            a {
+            margin: 0 0 15px !important;
+            }
+        }
+        }
+    }
+    .main_header {
+        #top-nav {
+            text-align: center !important;
+            .text-right{
+                text-align: center !important;
+            }
+        }
+    }
+}
+
+@media (max-width: 767px) {    
+    #hero {
+        text-align: center;
+        .slider {
+            height: auto;
+            .title {
+                font-size: 30px;
+                line-height: 35px;
+                margin-top: 0;
+                span {
+                font-size: 20px;
+                }
+            }
+        }
+    }
+    .our-best-service {
+        .service-box {
+        text-align: center;
+        }
+    }
+    .why-choose-us {
+        .common-cnt {
+        .section-top {
+            p {
+            font-size: 26px;
+            line-height: 30px;
+            }
+        }
+        }
+    }
+    .home-blog {
+        .blog-box {
+        margin-bottom: 30px;
+        }
+    }
+    #footer {
+        .form {
+        .form-group {
+            margin-bottom: 5px;
+        }
+        }
+        .copyright {
+        text-align: center;
+        }
+    }
+    .about-us-section {
+        .opening-hours {
+        ul {
+            li {
+            line-height: 25px;
+            margin-bottom: 10px;
+            label {
+                display: block;
+            }
+            span {
+                padding-left: 25px;
+            }
+            }
+        }
+        }
+        .row.justify-content-between {
+        .p-r-0 {
+            padding-right: 15px;
+        }
+        }
+    }
+    .copyright{
+        text-align: center;
+        .col-lg-2.col-md-2{
+            margin-top: 15px; 
+            margin-bottom: 15px; 
+        }
+    }
+}
+
+@media (max-width: 991px) {
+    .section-title.left {
+        padding-bottom: 0;
+    }
+    #hero {
+        .slider {
+            background-image: none !important;
+        }
+    }
+}

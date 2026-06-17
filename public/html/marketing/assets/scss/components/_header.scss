@@ -1,0 +1,24 @@
+.main_header {
+    #top-nav {
+        padding: 10px 0;
+        .btn.btn-link {
+            color: $white;
+            font-size: $nc-font-size-base;
+            i {
+                font-size: 14px;
+            }
+        }    
+    }    
+}
+#header {
+    background: $white;
+    padding: 25px 10px;
+
+    a.navbar-brand {
+        @extend .margin-0;
+        @extend .padding-0;
+        img {
+            width: 170px;
+        }
+    }
+}

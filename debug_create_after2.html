@@ -1,0 +1,1658 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="description" content="Admin Panel">
+    <title>IPA - Admin</title>
+    <link rel="icon" href="/html/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/html/assets/plugins/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/html/assets/plugins/jvectormap/jquery-jvectormap-2.0.3.min.css">
+    <link rel="stylesheet" href="/html/assets/plugins/morrisjs/morris.min.css">
+    <link rel="stylesheet" href="/html/light/assets/css/main.css">
+    <link rel="stylesheet" href="/html/light/assets/css/color_skins.css">
+    <script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://127.0.0.1:8000/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) return '[Circular]';
+                seen.add(value);
+            }
+            if (value instanceof Error) {
+                return {
+                    name: value.name,
+                    message: value.message,
+                    stack: value.stack
+                };
+            }
+            return value;
+        });
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            logQueue.push({
+                type: 'uncaught_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: errorMsg,
+                    filename: url,
+                    lineno: lineNumber,
+                    colno: colNumber,
+                    error: error ? {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: event.reason instanceof Error ? {
+                        name: event.reason.name,
+                        message: event.reason.message,
+                        stack: event.reason.stack
+                    } : event.reason
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body class="theme-purple">
+
+<!-- Page Loader -->
+<div class="page-loader-wrapper">
+    <div class="loader">
+        <div class="m-t-30"><img class="zmdi-hc-spin" src="/html/light/assets/images/logo.svg" width="48" height="48" alt="IPA"></div>
+        <p>Please wait...</p>
+    </div>
+</div>
+<!-- Overlay For Sidebars -->
+<div class="overlay"></div>
+
+<nav class="navbar p-l-5 p-r-5">
+    <ul class="nav navbar-nav navbar-left">
+        <li>
+            <div class="navbar-header">
+                <a href="javascript:void(0);" class="bars"></a>
+                <a class="navbar-brand" href="http://127.0.0.1:8000/admin"><img src="/html/light/assets/images/logo.svg" width="30" alt="IPA"><span class="m-l-10">IPA</span></a>
+            </div>
+        </li>
+       <!-- <li><a href="javascript:void(0);" class="ls-toggle-btn" data-close="true"><i class="zmdi zmdi-swap"></i></a></li>
+        <li class="hidden-md-down"><a href="http://127.0.0.1:8000" title="Home"><i class="zmdi zmdi-home"></i></a></li>
+        <li class="hidden-md-down"><a href="http://127.0.0.1:8000/events" title="Events"><i class="zmdi zmdi-calendar"></i></a></li>
+        <li class="hidden-md-down"><a href="http://127.0.0.1:8000/mail-inbox" title="Inbox"><i class="zmdi zmdi-email"></i></a></li>
+        <li><a href="http://127.0.0.1:8000/contact" title="Contact List"><i class="zmdi zmdi-account-box-phone"></i></a></li>
+        <li class="dropdown"> <a href="javascript:void(0);" class="dropdown-toggle" data-toggle="dropdown" role="button"><i class="zmdi zmdi-notifications"></i>-->
+          <!--  <div class="notify"><span class="heartbit"></span><span class="point"></span></div>-->
+            </a>
+            <ul class="dropdown-menu pullDown">
+                <li class="body">
+                    <ul class="menu list-unstyled">
+                        <li>
+                            <a href="javascript:void(0);">
+                                <div class="media">
+                                    <img class="media-object" src="/html/light/assets/images/xs/avatar2.jpg" alt="">
+                                    <div class="media-body">
+                                        <span class="name">Sophia <span class="time">30min ago</span></span>
+                                        <span class="message">There are many variations of passages</span>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="footer"> <a href="javascript:void(0);">View All</a> </li>
+            </ul>
+        </li>
+        <!--<li class="dropdown"> <a href="javascript:void(0);" class="dropdown-toggle" data-toggle="dropdown" role="button"><i class="zmdi zmdi-flag"></i>
+            <div class="notify">
+                <span class="heartbit"></span>
+                <span class="point"></span>
+            </div>
+            </a>
+            <ul class="dropdown-menu pullDown">
+                <li class="header">Project</li>
+                <li class="body">
+                    <ul class="menu tasks list-unstyled">
+                        <li>
+                            <a href="javascript:void(0);">
+                                <div class="progress-container progress-primary">
+                                    <span class="progress-badge">eCommerce Website</span>
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" aria-valuenow="86" aria-valuemin="0" aria-valuemax="100" style="width: 86%;">
+                                            <span class="progress-value">86%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="footer"><a href="javascript:void(0);">View All</a></li>
+            </ul>
+        </li>-->
+<!--        <li class="hidden-sm-down">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search...">
+                <span class="input-group-addon"><i class="zmdi zmdi-search"></i></span>
+            </div>
+        </li>-->
+        <li class="float-right">
+            <form method="POST" action="http://127.0.0.1:8000/admin/logout" class="d-inline">
+                <input type="hidden" name="_token" value="Rm0MycyAUSXOYeykX9UPuHEp8gpLUfS5ca97LOH4" autocomplete="off">                <button type="submit" class="btn btn-link p-0 m-0 text-white"><i class="zmdi zmdi-power"></i></button>
+            </form>
+            <a href="javascript:void(0);" class="js-right-sidebar" data-close="true"><i class="zmdi zmdi-settings zmdi-hc-spin"></i></a>
+        </li>
+    </ul>
+</nav>
+
+<aside id="leftsidebar" class="sidebar">
+    <ul class="nav nav-tabs">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#dashboard"><i class="zmdi zmdi-home m-r-5"></i>IPA</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#user"><i class="zmdi zmdi-account m-r-5"></i>User</a></li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane stretchRight active" id="dashboard">
+            <div class="menu">
+                <ul class="list">
+                    <li>
+                        <div class="user-info">
+                            <div class="image"><a href="#"><img src="/html/light/assets/images/profile_av.png" alt="User"></a></div>
+                            <div class="detail">
+                                <h4>Admin</h4>
+                                <small>Administrator</small>
+                            </div>
+                            <!--<a title="facebook" href="javascript:void(0);"><i class="zmdi zmdi-facebook"></i></a>
+                            <a title="twitter" href="javascript:void(0);"><i class="zmdi zmdi-twitter"></i></a>
+                            <a title="instagram" href="javascript:void(0);"><i class="zmdi zmdi-instagram"></i></a>-->
+                        </div>
+                    </li>
+                    <li class="header">MAIN</li>
+                    <li> <a href="http://127.0.0.1:8000/admin/applicants/create"><i class="zmdi zmdi-file-text"></i><span>Applicant Form</span></a></li>
+                                        <!--<li class="active open"> <a href="javascript:void(0);" class="menu-toggle"><i class="zmdi zmdi-home"></i><span>Dashboard</span></a>
+                        <ul class="ml-menu">
+                            <li class="active"><a href="http://127.0.0.1:8000/admin">Main</a> </li>
+                            <li><a href="javascript:void(0);">RTL</a></li>
+                            <li><a href="javascript:void(0);">Horizontal</a></li>
+                        </ul>
+                    </li>
+                    <li> <a href="javascript:void(0);" class="menu-toggle"><i class="zmdi zmdi-apps"></i><span>App</span> </a>
+                        <ul class="ml-menu">
+                            <li><a href="#">Inbox</a></li>
+                            <li><a href="#">Chat</a></li>
+                            <li><a href="#">Calendar</a></li>
+                        </ul>
+                    </li>
+                    <li> <a href="javascript:void(0);" class="menu-toggle"><i class="zmdi zmdi-shopping-cart"></i><span>Ecommerce</span> </a>
+                        <ul class="ml-menu">
+                            <li> <a href="#">Dashboard</a></li>
+                            <li> <a href="#">Product</a></li>
+                            <li> <a href="#">Product List</a></li>
+                        </ul>
+                    </li>
+                    <li class="header">FORMS, CHARTS, TABLES</li>
+                    <li> <a href="javascript:void(0);" class="menu-toggle"><i class="zmdi zmdi-assignment"></i><span>Forms</span> </a>
+                        <ul class="ml-menu">
+                            <li><a href="#">Basic Elements</a> </li>
+                            <li><a href="#">Advanced Elements</a> </li>
+                        </ul>
+                    </li>-->
+                    <li class="header">ACCOUNT</li>
+                    <li><a href="http://127.0.0.1:8000/admin/password/change"><i class="zmdi zmdi-lock"></i><span>Change Password</span></a></li>
+                    <li>
+                        <form method="POST" action="http://127.0.0.1:8000/admin/logout">
+                            <input type="hidden" name="_token" value="Rm0MycyAUSXOYeykX9UPuHEp8gpLUfS5ca97LOH4" autocomplete="off">                            <button type="submit" class="btn btn-link p-0 m-0 text-left"><i class="zmdi zmdi-power"></i> Logout</button>
+                        </form>
+                    </li>
+                    <!--<li class="header">EXTRA</li>
+                    <li>
+                        <div class="progress-container progress-primary m-t-10">
+                            <span class="progress-badge">Traffic this Month</span>
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow="67" aria-valuemin="0" aria-valuemax="100" style="width: 67%;">
+                                    <span class="progress-value">67%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </li>-->
+                </ul>
+            </div>
+        </div>
+        <div class="tab-pane stretchLeft" id="user">
+            <div class="menu">
+                <ul class="list">
+                    <li>
+                        <div class="user-info m-b-20 p-b-15">
+                            <div class="image"><a href="#"><img src="/html/light/assets/images/profile_av.png" alt="User"></a></div>
+                            <div class="detail">
+                                <h4>Admin</h4>
+                                <small>Administrator</small>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <small class="text-muted">Email address: </small>
+                        <p>—</p>
+                        <hr>
+                       <!-- <small class="text-muted">Phone: </small>
+                        <p>—</p>-->
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<aside id="rightsidebar" class="right-sidebar">
+    <ul class="nav nav-tabs">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#setting"><i class="zmdi zmdi-settings zmdi-hc-spin"></i></a></li>
+         <!--<li class="nav-item"><a class="nav-link" data-toggle="tab" href="#chat"><i class="zmdi zmdi-comments"></i></a></li>
+       <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#activity">Activity</a></li>-->
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane slideRight active" id="setting">
+            <div class="slim_scroll">
+                <div class="card">
+                    <h6>Skins</h6>
+                    <ul class="choose-skin list-unstyled">
+                        <li data-theme="purple" class="active"><div class="purple"></div></li>
+                        <li data-theme="blue"><div class="blue"></div></li>
+                        <li data-theme="cyan"><div class="cyan"></div></li>
+                        <li data-theme="green"><div class="green"></div></li>
+                        <li data-theme="orange"><div class="orange"></div></li>
+                        <li data-theme="blush"><div class="blush"></div></li>
+                    </ul>
+                </div>
+                <div class="card theme-light-dark">
+                    <h6>Left Menu</h6>
+                    <button class="t-light btn btn-default btn-simple btn-round btn-block">Light</button>
+                    <button class="t-dark btn btn-default btn-round btn-block">Dark</button>
+                   <!-- <button class="m_img_btn btn btn-primary btn-round btn-block">Sidebar Image</button>-->
+                </div>
+              <!--  <div class="card">
+                    <h6>General Settings</h6>
+                    <ul class="setting-list list-unstyled">
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox1" type="checkbox">
+                                <label for="checkbox1">Report Panel Usage</label>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox2" type="checkbox" checked="">
+                                <label for="checkbox2">Email Redirect</label>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox3" type="checkbox" checked="">
+                                <label for="checkbox3">Notifications</label>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox4" type="checkbox" checked="">
+                                <label for="checkbox4">Auto Updates</label>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h6>Account Settings</h6>
+                    <ul class="setting-list list-unstyled">
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox5" type="checkbox" checked="">
+                                <label for="checkbox5">Offline</label>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="checkbox">
+                                <input id="checkbox6" type="checkbox" checked="">
+                                <label for="checkbox6">Location Permission</label>
+                            </div>
+                        </li>
+                    </ul>
+                </div>-->
+            </div>
+        </div>
+        <!--<div class="tab-pane right_chat stretchLeft" id="chat">
+            <div class="slim_scroll">
+                <div class="card">
+                    <div class="search">
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Search...">
+                            <span class="input-group-addon"><i class="zmdi zmdi-search"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h6>Recent</h6>
+                    <ul class="list-unstyled">
+                        <li class="online">
+                            <a href="javascript:void(0);">
+                                <div class="media">
+                                    <img class="media-object " src="/html/light/assets/images/xs/avatar4.jpg" alt="">
+                                    <div class="media-body">
+                                        <span class="name">Sophia</span>
+                                        <span class="message">There are many variations of passages of Lorem Ipsum available</span>
+                                        <span class="badge badge-outline status"></span>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                       
+                    </ul>
+                </div>
+            </div>
+        </div>-->
+        <div class="tab-pane slideLeft" id="activity">
+            <div class="slim_scroll">
+                <div class="card user_activity">
+                    <h6>Recent Activity</h6>
+                    <div class="streamline b-accent">
+                        <div class="sl-item">
+                            <img class="user rounded-circle" src="/html/light/assets/images/xs/avatar4.jpg" alt="">
+                            <div class="sl-content">
+                                <h5 class="m-b-0">Admin Birthday</h5>
+                                <small>Jan 21 <a href="javascript:void(0);" class="text-info">Sophia</a>.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- Chat-launcher -->
+<div class="chat-launcher"></div>
+<!--<div class="chat-wrapper">
+    <div class="card">
+        <div class="header">
+            <ul class="list-unstyled team-info margin-0">
+                <li class="m-r-15"><h2>Design Team</h2></li>
+                <li><img src="/html/light/assets/images/xs/avatar2.jpg" alt="Avatar"></li>
+                <li><img src="/html/light/assets/images/xs/avatar3.jpg" alt="Avatar"></li>
+                <li><img src="/html/light/assets/images/xs/avatar4.jpg" alt="Avatar"></li>
+                <li><img src="/html/light/assets/images/xs/avatar6.jpg" alt="Avatar"></li>
+                <li><a href="javascript:void(0);" title="Add Member"><i class="zmdi zmdi-plus-circle"></i></a></li>
+            </ul>
+        </div>
+        <div class="body">
+            <div class="chat-widget">
+            <ul class="chat-scroll-list clearfix">
+                <li class="left float-left">
+                    <img src="/html/light/assets/images/xs/avatar3.jpg" class="rounded-circle" alt="">
+                    <div class="chat-info">
+                        <a class="name" href="javascript:void(0);">Alexander</a>
+                        <span class="datetime">6:12</span>
+                        <span class="message">Hello, John </span>
+                    </div>
+                </li>
+            </ul>
+            </div>
+            <div class="input-group p-t-15">
+                <input type="text" class="form-control" placeholder="Enter text here...">
+                <span class="input-group-addon">
+                    <i class="zmdi zmdi-mail-send"></i>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>-->
+
+<!-- Main Content -->
+<section class="content home">
+    <div class="block-header">
+            </div>
+    <div class="container-fluid">
+        <div class="container-fluid">
+    <div class="block-header">
+        <h2>Applicant Form</h2>
+    </div>
+
+    
+    <form action="http://127.0.0.1:8000/admin/applicants" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_token" value="Rm0MycyAUSXOYeykX9UPuHEp8gpLUfS5ca97LOH4" autocomplete="off">        <div class="card">
+            <div class="body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label>Name</label>
+                                                <div class="form-group">
+                            <input type="text" name="name" class="form-control " value="" >
+                                                    </div>
+                        <label>Address</label>
+                        <div class="form-group">
+                            <textarea name="address" class="form-control "></textarea>
+                                                    </div>
+                        <label>Email</label>
+                        <div class="form-group">
+                            <input type="email" name="email" class="form-control " value="" >
+                                                    </div>
+                        <label>Contact Number</label>
+                        <div class="form-group"><input type="text" name="contact_number" class="form-control " value="">
+                                                    </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Domain Knowledge / Area of Expertise</label>
+                        <div class="form-group"><textarea name="domain_knowledge" class="form-control "></textarea>
+                                                    </div>
+                        <label>Resume (PDF/DOC/DOCX)</label>
+                        <div class="form-group"><input type="file" name="resume" class="form-control "></div>
+                                            </div>
+                </div>
+
+                <hr>
+                <h5>Educational Qualifications</h5>
+                <div id="educations">
+                                                                <div class="education-row row mb-2">
+                            <div class="col-md-6">
+                                <input type="text" name="educations[0][qualification]" placeholder="Qualification" class="form-control " value="">
+                                                            </div>
+                            <div class="col-md-4">
+                                <input type="text" name="educations[0][institution]" placeholder="Institution" class="form-control " value="">
+                                                            </div>
+                            <div class="col-md-2">
+                                <select name="educations[0][year]" class="form-control ms ">
+                                    <option value="">Passing Year</option>
+                                                                            <option value="2025" >2025</option>
+                                                                            <option value="2024" >2024</option>
+                                                                            <option value="2023" >2023</option>
+                                                                            <option value="2022" >2022</option>
+                                                                            <option value="2021" >2021</option>
+                                                                            <option value="2020" >2020</option>
+                                                                            <option value="2019" >2019</option>
+                                                                            <option value="2018" >2018</option>
+                                                                            <option value="2017" >2017</option>
+                                                                            <option value="2016" >2016</option>
+                                                                            <option value="2015" >2015</option>
+                                                                            <option value="2014" >2014</option>
+                                                                            <option value="2013" >2013</option>
+                                                                            <option value="2012" >2012</option>
+                                                                            <option value="2011" >2011</option>
+                                                                            <option value="2010" >2010</option>
+                                                                            <option value="2009" >2009</option>
+                                                                            <option value="2008" >2008</option>
+                                                                            <option value="2007" >2007</option>
+                                                                            <option value="2006" >2006</option>
+                                                                            <option value="2005" >2005</option>
+                                                                            <option value="2004" >2004</option>
+                                                                            <option value="2003" >2003</option>
+                                                                            <option value="2002" >2002</option>
+                                                                            <option value="2001" >2001</option>
+                                                                            <option value="2000" >2000</option>
+                                                                            <option value="1999" >1999</option>
+                                                                            <option value="1998" >1998</option>
+                                                                            <option value="1997" >1997</option>
+                                                                            <option value="1996" >1996</option>
+                                                                            <option value="1995" >1995</option>
+                                                                            <option value="1994" >1994</option>
+                                                                            <option value="1993" >1993</option>
+                                                                            <option value="1992" >1992</option>
+                                                                            <option value="1991" >1991</option>
+                                                                            <option value="1990" >1990</option>
+                                                                            <option value="1989" >1989</option>
+                                                                            <option value="1988" >1988</option>
+                                                                            <option value="1987" >1987</option>
+                                                                            <option value="1986" >1986</option>
+                                                                            <option value="1985" >1985</option>
+                                                                            <option value="1984" >1984</option>
+                                                                            <option value="1983" >1983</option>
+                                                                            <option value="1982" >1982</option>
+                                                                            <option value="1981" >1981</option>
+                                                                            <option value="1980" >1980</option>
+                                                                            <option value="1979" >1979</option>
+                                                                            <option value="1978" >1978</option>
+                                                                            <option value="1977" >1977</option>
+                                                                            <option value="1976" >1976</option>
+                                                                            <option value="1975" >1975</option>
+                                                                            <option value="1974" >1974</option>
+                                                                            <option value="1973" >1973</option>
+                                                                            <option value="1972" >1972</option>
+                                                                            <option value="1971" >1971</option>
+                                                                            <option value="1970" >1970</option>
+                                                                            <option value="1969" >1969</option>
+                                                                            <option value="1968" >1968</option>
+                                                                            <option value="1967" >1967</option>
+                                                                            <option value="1966" >1966</option>
+                                                                            <option value="1965" >1965</option>
+                                                                            <option value="1964" >1964</option>
+                                                                            <option value="1963" >1963</option>
+                                                                            <option value="1962" >1962</option>
+                                                                            <option value="1961" >1961</option>
+                                                                            <option value="1960" >1960</option>
+                                                                    </select>
+                                                            </div>
+                        </div>
+                                    </div>
+                <button type="button" id="add-education" class="btn btn-sm btn-primary">Add Education</button>
+
+                <hr>
+                <h5>Professional Experience</h5>
+                <div id="experiences">
+                                                                <div class="experience-row row mb-2">
+                            <div class="col-md-6">
+                                <input type="text" name="experiences[0][organization]" placeholder="Organization" class="form-control " value="">
+                                                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="experiences[0][role]" placeholder="Role/Designation" class="form-control " value="">
+                                                            </div>
+                            <div class="col-md-3">
+                                <select name="experiences[0][from_year]" class="form-control ms ">
+                                    <option value="">From Year</option>
+                                                                            <option value="2025" >2025</option>
+                                                                            <option value="2024" >2024</option>
+                                                                            <option value="2023" >2023</option>
+                                                                            <option value="2022" >2022</option>
+                                                                            <option value="2021" >2021</option>
+                                                                            <option value="2020" >2020</option>
+                                                                            <option value="2019" >2019</option>
+                                                                            <option value="2018" >2018</option>
+                                                                            <option value="2017" >2017</option>
+                                                                            <option value="2016" >2016</option>
+                                                                            <option value="2015" >2015</option>
+                                                                            <option value="2014" >2014</option>
+                                                                            <option value="2013" >2013</option>
+                                                                            <option value="2012" >2012</option>
+                                                                            <option value="2011" >2011</option>
+                                                                            <option value="2010" >2010</option>
+                                                                            <option value="2009" >2009</option>
+                                                                            <option value="2008" >2008</option>
+                                                                            <option value="2007" >2007</option>
+                                                                            <option value="2006" >2006</option>
+                                                                            <option value="2005" >2005</option>
+                                                                            <option value="2004" >2004</option>
+                                                                            <option value="2003" >2003</option>
+                                                                            <option value="2002" >2002</option>
+                                                                            <option value="2001" >2001</option>
+                                                                            <option value="2000" >2000</option>
+                                                                            <option value="1999" >1999</option>
+                                                                            <option value="1998" >1998</option>
+                                                                            <option value="1997" >1997</option>
+                                                                            <option value="1996" >1996</option>
+                                                                            <option value="1995" >1995</option>
+                                                                            <option value="1994" >1994</option>
+                                                                            <option value="1993" >1993</option>
+                                                                            <option value="1992" >1992</option>
+                                                                            <option value="1991" >1991</option>
+                                                                            <option value="1990" >1990</option>
+                                                                            <option value="1989" >1989</option>
+                                                                            <option value="1988" >1988</option>
+                                                                            <option value="1987" >1987</option>
+                                                                            <option value="1986" >1986</option>
+                                                                            <option value="1985" >1985</option>
+                                                                            <option value="1984" >1984</option>
+                                                                            <option value="1983" >1983</option>
+                                                                            <option value="1982" >1982</option>
+                                                                            <option value="1981" >1981</option>
+                                                                            <option value="1980" >1980</option>
+                                                                            <option value="1979" >1979</option>
+                                                                            <option value="1978" >1978</option>
+                                                                            <option value="1977" >1977</option>
+                                                                            <option value="1976" >1976</option>
+                                                                            <option value="1975" >1975</option>
+                                                                            <option value="1974" >1974</option>
+                                                                            <option value="1973" >1973</option>
+                                                                            <option value="1972" >1972</option>
+                                                                            <option value="1971" >1971</option>
+                                                                            <option value="1970" >1970</option>
+                                                                            <option value="1969" >1969</option>
+                                                                            <option value="1968" >1968</option>
+                                                                            <option value="1967" >1967</option>
+                                                                            <option value="1966" >1966</option>
+                                                                            <option value="1965" >1965</option>
+                                                                            <option value="1964" >1964</option>
+                                                                            <option value="1963" >1963</option>
+                                                                            <option value="1962" >1962</option>
+                                                                            <option value="1961" >1961</option>
+                                                                            <option value="1960" >1960</option>
+                                                                    </select>
+                                                            </div>
+                            <div class="col-md-3">
+                                <select name="experiences[0][to_year]" class="form-control ms ">
+                                    <option value="">To Year</option>
+                                                                            <option value="2025" >2025</option>
+                                                                            <option value="2024" >2024</option>
+                                                                            <option value="2023" >2023</option>
+                                                                            <option value="2022" >2022</option>
+                                                                            <option value="2021" >2021</option>
+                                                                            <option value="2020" >2020</option>
+                                                                            <option value="2019" >2019</option>
+                                                                            <option value="2018" >2018</option>
+                                                                            <option value="2017" >2017</option>
+                                                                            <option value="2016" >2016</option>
+                                                                            <option value="2015" >2015</option>
+                                                                            <option value="2014" >2014</option>
+                                                                            <option value="2013" >2013</option>
+                                                                            <option value="2012" >2012</option>
+                                                                            <option value="2011" >2011</option>
+                                                                            <option value="2010" >2010</option>
+                                                                            <option value="2009" >2009</option>
+                                                                            <option value="2008" >2008</option>
+                                                                            <option value="2007" >2007</option>
+                                                                            <option value="2006" >2006</option>
+                                                                            <option value="2005" >2005</option>
+                                                                            <option value="2004" >2004</option>
+                                                                            <option value="2003" >2003</option>
+                                                                            <option value="2002" >2002</option>
+                                                                            <option value="2001" >2001</option>
+                                                                            <option value="2000" >2000</option>
+                                                                            <option value="1999" >1999</option>
+                                                                            <option value="1998" >1998</option>
+                                                                            <option value="1997" >1997</option>
+                                                                            <option value="1996" >1996</option>
+                                                                            <option value="1995" >1995</option>
+                                                                            <option value="1994" >1994</option>
+                                                                            <option value="1993" >1993</option>
+                                                                            <option value="1992" >1992</option>
+                                                                            <option value="1991" >1991</option>
+                                                                            <option value="1990" >1990</option>
+                                                                            <option value="1989" >1989</option>
+                                                                            <option value="1988" >1988</option>
+                                                                            <option value="1987" >1987</option>
+                                                                            <option value="1986" >1986</option>
+                                                                            <option value="1985" >1985</option>
+                                                                            <option value="1984" >1984</option>
+                                                                            <option value="1983" >1983</option>
+                                                                            <option value="1982" >1982</option>
+                                                                            <option value="1981" >1981</option>
+                                                                            <option value="1980" >1980</option>
+                                                                            <option value="1979" >1979</option>
+                                                                            <option value="1978" >1978</option>
+                                                                            <option value="1977" >1977</option>
+                                                                            <option value="1976" >1976</option>
+                                                                            <option value="1975" >1975</option>
+                                                                            <option value="1974" >1974</option>
+                                                                            <option value="1973" >1973</option>
+                                                                            <option value="1972" >1972</option>
+                                                                            <option value="1971" >1971</option>
+                                                                            <option value="1970" >1970</option>
+                                                                            <option value="1969" >1969</option>
+                                                                            <option value="1968" >1968</option>
+                                                                            <option value="1967" >1967</option>
+                                                                            <option value="1966" >1966</option>
+                                                                            <option value="1965" >1965</option>
+                                                                            <option value="1964" >1964</option>
+                                                                            <option value="1963" >1963</option>
+                                                                            <option value="1962" >1962</option>
+                                                                            <option value="1961" >1961</option>
+                                                                            <option value="1960" >1960</option>
+                                                                    </select>
+                                                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="experiences[0][details]" placeholder="Key Projects / Details" class="form-control " value="">
+                                                            </div>
+                        </div>
+                                    </div>
+                <button type="button" id="add-experience" class="btn btn-sm btn-primary">Add Experience</button>
+
+                <hr>
+                <h5>Areas & Subcategories</h5>
+                                <div class="form-group">
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_projects" name="categories[]" value="projects" >
+                            <label class="form-check-label" for="cat_projects">
+                                <strong>Projects</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_projects" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_projects_feasibility" name="categories[]" value="projects:feasibility" >
+                                    <label class="form-check-label" for="cat_projects_feasibility">
+                                        Feasibility &amp; Strategic Planning
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_projects_design" name="categories[]" value="projects:design" >
+                                    <label class="form-check-label" for="cat_projects_design">
+                                        Design, Engineering &amp; Construction Quality
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_projects_procurement" name="categories[]" value="projects:procurement" >
+                                    <label class="form-check-label" for="cat_projects_procurement">
+                                        Procurement, Contracting &amp; Commissioning
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_projects_risk" name="categories[]" value="projects:risk" >
+                                    <label class="form-check-label" for="cat_projects_risk">
+                                        Risk, Stakeholder &amp; Regulatory Clearances
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_projects_monitoring" name="categories[]" value="projects:monitoring" >
+                                    <label class="form-check-label" for="cat_projects_monitoring">
+                                        Monitoring, Reporting &amp; Performance Audits
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_environment" name="categories[]" value="environment" >
+                            <label class="form-check-label" for="cat_environment">
+                                <strong>Environment, Coastal Management &amp; Green Ports</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_environment" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_environment_env_assessment" name="categories[]" value="environment:env_assessment" >
+                                    <label class="form-check-label" for="cat_environment_env_assessment">
+                                        Environmental Assessment, Compliance &amp; Monitoring
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_environment_coastal" name="categories[]" value="environment:coastal" >
+                                    <label class="form-check-label" for="cat_environment_coastal">
+                                        Coastal &amp; Marine Ecosystems Management
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_environment_pollution" name="categories[]" value="environment:pollution" >
+                                    <label class="form-check-label" for="cat_environment_pollution">
+                                        Pollution &amp; Waste Management
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_environment_low_carbon" name="categories[]" value="environment:low_carbon" >
+                                    <label class="form-check-label" for="cat_environment_low_carbon">
+                                        Low Carbon &amp; Renewable Energy Programs
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_environment_climate" name="categories[]" value="environment:climate" >
+                                    <label class="form-check-label" for="cat_environment_climate">
+                                        Climate Resilience &amp; Green Port Certification
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_finance" name="categories[]" value="finance" >
+                            <label class="form-check-label" for="cat_finance">
+                                <strong>Finance, Taxation &amp; Investment</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_finance" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_finance_financial_planning" name="categories[]" value="finance:financial_planning" >
+                                    <label class="form-check-label" for="cat_finance_financial_planning">
+                                        Financial Planning, Accounting &amp; Reporting
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_finance_tariffs" name="categories[]" value="finance:tariffs" >
+                                    <label class="form-check-label" for="cat_finance_tariffs">
+                                        Tariffs, Pricing &amp; Revenue Optimization
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_finance_investment" name="categories[]" value="finance:investment" >
+                                    <label class="form-check-label" for="cat_finance_investment">
+                                        Investment Promotion, Modelling &amp; PPP
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_finance_grants" name="categories[]" value="finance:grants" >
+                                    <label class="form-check-label" for="cat_finance_grants">
+                                        Grants, Funding &amp; Regulatory Compliance
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_finance_fin_risk" name="categories[]" value="finance:fin_risk" >
+                                    <label class="form-check-label" for="cat_finance_fin_risk">
+                                        Risk, Audit &amp; Economic Impact
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_it" name="categories[]" value="it" >
+                            <label class="form-check-label" for="cat_it">
+                                <strong>Information Technology</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_it" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_it_core_platforms" name="categories[]" value="it:core_platforms" >
+                                    <label class="form-check-label" for="cat_it_core_platforms">
+                                        Core Port Platforms &amp; Systems Integration
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_it_infra" name="categories[]" value="it:infra" >
+                                    <label class="form-check-label" for="cat_it_infra">
+                                        IT Infrastructure, Cybersecurity &amp; Data Protection
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_it_analytics" name="categories[]" value="it:analytics" >
+                                    <label class="form-check-label" for="cat_it_analytics">
+                                        Analytics, BI &amp; AI Driven Operations
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_it_smart_port" name="categories[]" value="it:smart_port" >
+                                    <label class="form-check-label" for="cat_it_smart_port">
+                                        Smart Port, IoT, Digital Twin &amp; GIS
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_it_user_enable" name="categories[]" value="it:user_enable" >
+                                    <label class="form-check-label" for="cat_it_user_enable">
+                                        User Enablement, Training &amp; Support
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_navigational" name="categories[]" value="navigational" >
+                            <label class="form-check-label" for="cat_navigational">
+                                <strong>Navigational Audit</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_navigational" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_navigational_hydrography" name="categories[]" value="navigational:hydrography" >
+                                    <label class="form-check-label" for="cat_navigational_hydrography">
+                                        Hydrography, Bathymetry &amp; Draft Optimization
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_navigational_channel" name="categories[]" value="navigational:channel" >
+                                    <label class="form-check-label" for="cat_navigational_channel">
+                                        Channel, Berth &amp; Navigational Safety Audits
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_navigational_vts" name="categories[]" value="navigational:vts" >
+                                    <label class="form-check-label" for="cat_navigational_vts">
+                                        Vessel Traffic Services (VTS) Evaluation
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_navigational_aids" name="categories[]" value="navigational:aids" >
+                                    <label class="form-check-label" for="cat_navigational_aids">
+                                        Aids to Navigation, Pilotage &amp; Towage Review
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_navigational_psms" name="categories[]" value="navigational:psms" >
+                                    <label class="form-check-label" for="cat_navigational_psms">
+                                        Port Safety Management Systems Compliance
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_estate" name="categories[]" value="estate" >
+                            <label class="form-check-label" for="cat_estate">
+                                <strong>Estate &amp; Town Planning</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_estate" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_estate_master_plan" name="categories[]" value="estate:master_plan" >
+                                    <label class="form-check-label" for="cat_estate_master_plan">
+                                        Master Planning, Land Use &amp; Zoning
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_estate_lease" name="categories[]" value="estate:lease" >
+                                    <label class="form-check-label" for="cat_estate_lease">
+                                        Lease, Valuation &amp; Asset Management
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_estate_gis" name="categories[]" value="estate:gis" >
+                                    <label class="form-check-label" for="cat_estate_gis">
+                                        GIS Enabled Spatial Planning &amp; Analytics
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_estate_access" name="categories[]" value="estate:access" >
+                                    <label class="form-check-label" for="cat_estate_access">
+                                        Access Corridors, Utilities &amp; Smart Infrastructure
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_estate_es_integration" name="categories[]" value="estate:es_integration" >
+                                    <label class="form-check-label" for="cat_estate_es_integration">
+                                        Environmental &amp; Social Impact Integration
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_legal" name="categories[]" value="legal" >
+                            <label class="form-check-label" for="cat_legal">
+                                <strong>Legal</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_legal" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_legal_maritime" name="categories[]" value="legal:maritime" >
+                                    <label class="form-check-label" for="cat_legal_maritime">
+                                        Maritime Legislation, Rule Making &amp; Regulatory Compliance
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_legal_contracts" name="categories[]" value="legal:contracts" >
+                                    <label class="form-check-label" for="cat_legal_contracts">
+                                        Contracts, Licensing, Concessions &amp; PPP Legal
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_legal_dispute" name="categories[]" value="legal:dispute" >
+                                    <label class="form-check-label" for="cat_legal_dispute">
+                                        Dispute Resolution, Arbitration &amp; Legal Due Diligence
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_legal_env_law" name="categories[]" value="legal:env_law" >
+                                    <label class="form-check-label" for="cat_legal_env_law">
+                                        Environmental, Safety, Labour &amp; Industrial Law
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_legal_ip" name="categories[]" value="legal:ip" >
+                                    <label class="form-check-label" for="cat_legal_ip">
+                                        IP &amp; Technology Agreements with Statutory Oversight
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_disaster" name="categories[]" value="disaster" >
+                            <label class="form-check-label" for="cat_disaster">
+                                <strong>Disaster Management</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_disaster" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_disaster_risk_map" name="categories[]" value="disaster:risk_map" >
+                                    <label class="form-check-label" for="cat_disaster_risk_map">
+                                        Risk Assessment, Hazard Mapping &amp; Compliance
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_disaster_emergency" name="categories[]" value="disaster:emergency" >
+                                    <label class="form-check-label" for="cat_disaster_emergency">
+                                        Emergency Response, Rescue &amp; Crisis Coordination
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_disaster_pollution_prep" name="categories[]" value="disaster:pollution_prep" >
+                                    <label class="form-check-label" for="cat_disaster_pollution_prep">
+                                        Fire, Explosion, Oil Spill &amp; Pollution Preparedness
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_disaster_training_drills" name="categories[]" value="disaster:training_drills" >
+                                    <label class="form-check-label" for="cat_disaster_training_drills">
+                                        Training, Drills &amp; Equipment Readiness
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_disaster_post_disaster" name="categories[]" value="disaster:post_disaster" >
+                                    <label class="form-check-label" for="cat_disaster_post_disaster">
+                                        Post Disaster Assessment, Recovery &amp; Rehabilitation
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_business" name="categories[]" value="business" >
+                            <label class="form-check-label" for="cat_business">
+                                <strong>Business Development</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_business" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_business_market" name="categories[]" value="business:market" >
+                                    <label class="form-check-label" for="cat_business_market">
+                                        Market Intelligence, Strategy &amp; Growth Forecasting
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_business_marketing" name="categories[]" value="business:marketing" >
+                                    <label class="form-check-label" for="cat_business_marketing">
+                                        Port Marketing, Digital Outreach &amp; Trade Promotion
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_business_cargo" name="categories[]" value="business:cargo" >
+                                    <label class="form-check-label" for="cat_business_cargo">
+                                        Cargo &amp; Route Development with Hinterland Logistics
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_business_crm" name="categories[]" value="business:crm" >
+                                    <label class="form-check-label" for="cat_business_crm">
+                                        Stakeholder &amp; Customer Relationship Management
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_business_partnerships" name="categories[]" value="business:partnerships" >
+                                    <label class="form-check-label" for="cat_business_partnerships">
+                                        Partnerships, Investor Relations &amp; Value Added Services
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_hr" name="categories[]" value="hr" >
+                            <label class="form-check-label" for="cat_hr">
+                                <strong>Human Resources &amp; Welfare</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_hr" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_hr_learning" name="categories[]" value="hr:learning" >
+                                    <label class="form-check-label" for="cat_hr_learning">
+                                        Learning, Development &amp; Career Pathways
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_hr_performance" name="categories[]" value="hr:performance" >
+                                    <label class="form-check-label" for="cat_hr_performance">
+                                        Performance Management &amp; Incentive Systems
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_hr_industrial" name="categories[]" value="hr:industrial" >
+                                    <label class="form-check-label" for="cat_hr_industrial">
+                                        Industrial Relations, Health, Safety &amp; Welfare
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_hr_dei" name="categories[]" value="hr:dei" >
+                                    <label class="form-check-label" for="cat_hr_dei">
+                                        DEI, Engagement &amp; Retention
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_hr_hrtech" name="categories[]" value="hr:hrtech" >
+                                    <label class="form-check-label" for="cat_hr_hrtech">
+                                        HR Technology &amp; Analytics (HRIS)
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_capacity" name="categories[]" value="capacity" >
+                            <label class="form-check-label" for="cat_capacity">
+                                <strong>Capacity Building</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_capacity" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_capacity_competency" name="categories[]" value="capacity:competency" >
+                                    <label class="form-check-label" for="cat_capacity_competency">
+                                        Competency Frameworks &amp; Training Needs Analysis
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_capacity_curriculum" name="categories[]" value="capacity:curriculum" >
+                                    <label class="form-check-label" for="cat_capacity_curriculum">
+                                        Curriculum, Certification &amp; Accreditation
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_capacity_simulation" name="categories[]" value="capacity:simulation" >
+                                    <label class="form-check-label" for="cat_capacity_simulation">
+                                        Simulation Facilities, Mentorship &amp; Leadership
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_capacity_research" name="categories[]" value="capacity:research" >
+                                    <label class="form-check-label" for="cat_capacity_research">
+                                        Research, Knowledge Management, Digital Learning &amp; International Collaboration
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_capacity_program_me" name="categories[]" value="capacity:program_me" >
+                                    <label class="form-check-label" for="cat_capacity_program_me">
+                                        Program Monitoring, Evaluation &amp; Impact
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_ndt" name="categories[]" value="ndt" >
+                            <label class="form-check-label" for="cat_ndt">
+                                <strong>NDT &amp; SDT</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_ndt" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ndt_structural" name="categories[]" value="ndt:structural" >
+                                    <label class="form-check-label" for="cat_ndt_structural">
+                                        Structural Integrity &amp; Material Health
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ndt_methods" name="categories[]" value="ndt:methods" >
+                                    <label class="form-check-label" for="cat_ndt_methods">
+                                        Ultrasonic, Radiographic, Magnetic &amp; Weld Inspection
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ndt_corrosion" name="categories[]" value="ndt:corrosion" >
+                                    <label class="form-check-label" for="cat_ndt_corrosion">
+                                        Corrosion Mapping, Thickness &amp; Concrete Diagnostics
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ndt_load" name="categories[]" value="ndt:load" >
+                                    <label class="form-check-label" for="cat_ndt_load">
+                                        Load Testing, Calibration &amp; Equipment Health Monitoring
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ndt_standards" name="categories[]" value="ndt:standards" >
+                                    <label class="form-check-label" for="cat_ndt_standards">
+                                        Testing Standards, Accreditation &amp; Quality Assurance
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_ind_engineer" name="categories[]" value="ind_engineer" >
+                            <label class="form-check-label" for="cat_ind_engineer">
+                                <strong>Independent Engineers</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_ind_engineer" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ind_engineer_design_review" name="categories[]" value="ind_engineer:design_review" >
+                                    <label class="form-check-label" for="cat_ind_engineer_design_review">
+                                        Design &amp; Drawing Review with Codes &amp; Standards Compliance
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ind_engineer_construction_supervision" name="categories[]" value="ind_engineer:construction_supervision" >
+                                    <label class="form-check-label" for="cat_ind_engineer_construction_supervision">
+                                        Construction Supervision, Quality &amp; Materials Verification
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ind_engineer_safety_audit" name="categories[]" value="ind_engineer:safety_audit" >
+                                    <label class="form-check-label" for="cat_ind_engineer_safety_audit">
+                                        Safety, Environmental &amp; Contractual Performance Audits
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ind_engineer_progress_monitor" name="categories[]" value="ind_engineer:progress_monitor" >
+                                    <label class="form-check-label" for="cat_ind_engineer_progress_monitor">
+                                        Progress Monitoring, Cost &amp; Schedule Validation
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_ind_engineer_as_built" name="categories[]" value="ind_engineer:as_built" >
+                                    <label class="form-check-label" for="cat_ind_engineer_as_built">
+                                        As Built Documentation &amp; Completion Certification
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_transaction" name="categories[]" value="transaction" >
+                            <label class="form-check-label" for="cat_transaction">
+                                <strong>Transaction Advisors</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_transaction" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_transaction_structuring" name="categories[]" value="transaction:structuring" >
+                                    <label class="form-check-label" for="cat_transaction_structuring">
+                                        Project Structuring, Strategy &amp; Policy Advisory
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_transaction_financial_modelling" name="categories[]" value="transaction:financial_modelling" >
+                                    <label class="form-check-label" for="cat_transaction_financial_modelling">
+                                        Financial Modelling, Valuation &amp; Feasibility
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_transaction_bid_management" name="categories[]" value="transaction:bid_management" >
+                                    <label class="form-check-label" for="cat_transaction_bid_management">
+                                        Bid Management &amp; Tender Documentation
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_transaction_due_diligence" name="categories[]" value="transaction:due_diligence" >
+                                    <label class="form-check-label" for="cat_transaction_due_diligence">
+                                        Comprehensive Due Diligence (Technical, Financial, Legal)
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_transaction_ppp_advisory" name="categories[]" value="transaction:ppp_advisory" >
+                                    <label class="form-check-label" for="cat_transaction_ppp_advisory">
+                                        PPP &amp; BOT/BOOT Concession Advisory
+                                    </label>
+                                </div>
+                                                    </div>
+                                            <div class="form-check">
+                            <input type="checkbox" class="form-check-input main-cat" id="cat_cruise" name="categories[]" value="cruise" >
+                            <label class="form-check-label" for="cat_cruise">
+                                <strong>Cruise Development</strong>
+                            </label>
+                        </div>
+                        <div class="subcats" id="subcats_cruise" style="display:  none ; margin-left: 20px; margin-bottom: 10px;">
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_cruise_baseline" name="categories[]" value="cruise:baseline" >
+                                    <label class="form-check-label" for="cat_cruise_baseline">
+                                        Baseline &amp; Opportunity Assessment
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_cruise_tourism" name="categories[]" value="cruise:tourism" >
+                                    <label class="form-check-label" for="cat_cruise_tourism">
+                                        Tourism &amp; Hospitality Ecosystem with Gap Analysis
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_cruise_market" name="categories[]" value="cruise:market" >
+                                    <label class="form-check-label" for="cat_cruise_market">
+                                        Market Potential, Itinerary &amp; Circuit Development
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_cruise_infra" name="categories[]" value="cruise:infra" >
+                                    <label class="form-check-label" for="cat_cruise_infra">
+                                        Infrastructure Planning &amp; Conceptual Design
+                                    </label>
+                                </div>
+                                                            <div class="form-check">
+                                    <input type="checkbox" class="form-check-input sub-cat" id="cat_cruise_financial" name="categories[]" value="cruise:financial" >
+                                    <label class="form-check-label" for="cat_cruise_financial">
+                                        Financial Viability, Business Model &amp; Action Plan
+                                    </label>
+                                </div>
+                                                    </div>
+                                    </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">Submit Application</button>
+            </div>
+        </div>
+    </form>
+</div>
+    </div>
+</section>
+
+<!-- Chat launcher and wrapper (optional placeholder) -->
+
+<!-- Jquery Core Js -->
+<script src="/html/light/assets/bundles/libscripts.bundle.js"></script>
+<script src="/html/light/assets/bundles/vendorscripts.bundle.js"></script>
+<script src="/html/light/assets/bundles/mainscripts.bundle.js"></script>
+<script src="/html/light/assets/js/pages/index.js"></script>
+    <script>
+    (function(){
+        console.log('Form script loaded');
+        const phoneField = document.querySelector('input[name="contact_number"]');
+        const phoneRegex = /^[0-9\+\-\s\(\)]{10,}$/;
+
+        function showFieldError(field, msg) {
+            field.classList.add('is-invalid');
+            let fb = field.parentNode.querySelector('.invalid-feedback');
+            if (!fb) {
+                fb = document.createElement('div');
+                fb.className = 'invalid-feedback';
+                field.parentNode.appendChild(fb);
+            }
+            fb.textContent = msg;
+        }
+        function clearFieldError(field) {
+            field.classList.remove('is-invalid');
+            let fb = field.parentNode.querySelector('.invalid-feedback');
+            if (fb) fb.textContent = '';
+        }
+
+        // Main category toggle
+        document.querySelectorAll('.main-cat').forEach(function(mainCheckbox){
+            mainCheckbox.addEventListener('change', function(){
+                const mainKey = this.value;
+                const subcatsDiv = document.getElementById('subcats_' + mainKey);
+                if (subcatsDiv) {
+                    subcatsDiv.style.display = this.checked ? 'block' : 'none';
+                }
+            });
+        });
+
+        // Subcategory auto-check parent
+        document.querySelectorAll('.sub-cat').forEach(function(subCheckbox){
+            subCheckbox.addEventListener('change', function(){
+                if (this.checked) {
+                    const mainKey = this.value.split(':')[0];
+                    const mainCheckbox = document.getElementById('cat_' + mainKey);
+                    if (mainCheckbox && !mainCheckbox.checked) {
+                        mainCheckbox.checked = true;
+                        mainCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
+        });
+
+        // Add Education
+        document.getElementById('add-education').addEventListener('click', function(){
+            const container = document.getElementById('educations');
+            const idx = container.querySelectorAll('.education-row').length;
+            
+            // Generate year options
+            let yearOptions = '<option value="">Year</option>';
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear; y >= 1960; y--) {
+                yearOptions += `<option value="${y}">${y}</option>`;
+            }
+            
+            const html = `
+                <div class="education-row row mb-2">
+                    <div class="col-md-6">
+                        <input type="text" name="educations[${idx}][qualification]" placeholder="Qualification" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="educations[${idx}][institution]" placeholder="Institution" class="form-control">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="educations[${idx}][year]" class="form-control ms">
+                            ${yearOptions}
+                        </select>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+
+        // Add Experience
+        document.getElementById('add-experience').addEventListener('click', function(){
+            const container = document.getElementById('experiences');
+            const idx = container.querySelectorAll('.experience-row').length;
+            
+            // Generate year options
+            let yearOptions = '<option value="">Year</option>';
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear; y >= 1960; y--) {
+                yearOptions += `<option value="${y}">${y}</option>`;
+            }
+            
+            const html = `
+                <div class="experience-row row mb-2">
+                    <div class="col-md-6">
+                        <input type="text" name="experiences[${idx}][organization]" placeholder="Organization" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" name="experiences[${idx}][role]" placeholder="Role/Designation" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="experiences[${idx}][from_year]" class="form-control ms">
+                            <option value="">From Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="experiences[${idx}][to_year]" class="form-control ms">
+                            <option value="">To Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" name="experiences[${idx}][details]" placeholder="Key Projects / Details" class="form-control">
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+
+        function validateYears() {
+            let errors = [];
+                document.querySelectorAll('#experiences .experience-row').forEach(function(row, idx){
+                const from = row.querySelector('[name^="experiences"][name$="[from_year]"]');
+                const to = row.querySelector('[name^="experiences"][name$="[to_year]"]');
+                if (from && to && from.value && to.value) {
+                    if (parseInt(from.value) > parseInt(to.value)) {
+                        showFieldError(to, 'To Year must be >= From Year');
+                        errors.push(to);
+                    } else {
+                        clearFieldError(to);
+                    }
+                }
+            });
+            return errors.length === 0;
+        }
+
+        document.querySelector('form').addEventListener('submit', function(e){
+            let valid = true;
+            // phone
+            if (phoneField && !phoneRegex.test(phoneField.value)) {
+                showFieldError(phoneField, 'Invalid phone number');
+                valid = false;
+            }
+            // years
+            if (!validateYears()) valid = false;
+
+            // categories: if a main category is checked, require at least one subcategory
+            function validateCategorySelection() {
+                let ok = true;
+                document.querySelectorAll('.main-cat').forEach(function(main){
+                    const key = main.value;
+                    if (!main.checked) return; // only validate checked mains
+                    const subDiv = document.getElementById('subcats_'+key) || document.getElementById('sub_'+key);
+                    let any = false;
+                    if (subDiv) {
+                        any = subDiv.querySelectorAll('input[type="checkbox"].sub-cat:checked').length > 0 || subDiv.querySelectorAll('input[type="checkbox"][name="categories[]"][value^="'+key+':"]:checked').length > 0;
+                    }
+                    if (!any) {
+                        ok = false;
+                        showFieldError(main, 'Please select at least one subcategory for this area');
+                    } else {
+                        clearFieldError(main);
+                    }
+                });
+                return ok;
+            }
+
+            if (!validateCategorySelection()) valid = false;
+
+            // ensure first education qualification is present
+            const firstQual = document.querySelector('#educations .education-row [name$="[qualification]"]');
+            if (firstQual && firstQual.value.trim() === '') {
+                showFieldError(firstQual, 'Qualification is required');
+                valid = false;
+            }
+
+            // conditional completeness validation for educations: if any field in a row filled, require all
+            document.querySelectorAll('#educations .education-row').forEach(function(row, idx){
+                const q = row.querySelector('[name^="educations"][name$="[qualification]"]');
+                const inst = row.querySelector('[name^="educations"][name$="[institution]"]');
+                const yr = row.querySelector('[name^="educations"][name$="[year]"]');
+                const any = (q && q.value.trim() !== '') || (inst && inst.value.trim() !== '') || (yr && yr.value.trim() !== '');
+                if (any) {
+                    if (q && q.value.trim() === '') { showFieldError(q, 'Qualification is required'); valid = false; }
+                    if (inst && inst.value.trim() === '') { showFieldError(inst, 'Institution is required'); valid = false; }
+                    if (yr && yr.value.trim() === '') { showFieldError(yr, 'Year is required'); valid = false; }
+                }
+            });
+
+            // conditional completeness validation for experiences
+            document.querySelectorAll('#experiences .experience-row').forEach(function(row, idx){
+                const org = row.querySelector('[name^="experiences"][name$="[organization]"]');
+                const role = row.querySelector('[name^="experiences"][name$="[role]"]');
+                const from = row.querySelector('[name^="experiences"][name$="[from_year]"]');
+                const to = row.querySelector('[name^="experiences"][name$="[to_year]"]');
+                const details = row.querySelector('input[name^="experiences"][name$="[details]"]') || row.querySelector('textarea[name^="experiences"][name$="[details]"]');
+                const any = (org && org.value.trim() !== '') || (role && role.value.trim() !== '') || (from && from.value.trim() !== '') || (to && to.value.trim() !== '') || (details && details.value.trim() !== '');
+                if (any) {
+                    if (org && org.value.trim() === '') { showFieldError(org, 'Organization is required'); valid = false; }
+                    if (role && role.value.trim() === '') { showFieldError(role, 'Role is required'); valid = false; }
+                    if (from && from.value.trim() === '') { showFieldError(from, 'From Year is required'); valid = false; }
+                    if (to && to.value.trim() === '') { showFieldError(to, 'To Year is required'); valid = false; }
+                }
+            });
+
+            if (!valid) {
+                e.preventDefault();
+                const firstInvalid = document.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    firstInvalid.focus();
+                }
+            }
+        });
+
+        // Add placeholder validation for year fields (user will enter 4-digit years manually)
+        // Year fields are type="text" to allow manual entry of any 4-digit year
+
+        // focus first invalid field if present
+        window.addEventListener('load', function(){
+            const firstInvalid = document.querySelector('.is-invalid');
+            if (firstInvalid) firstInvalid.focus();
+        });
+
+        // Reinitialize pickers when adding new rows (no picker library needed)
+        document.getElementById('add-education').addEventListener('click', function(){
+            // Year fields will use browser's native input handling
+        });
+
+        document.getElementById('add-experience').addEventListener('click', function(){
+            // Year fields will use browser's native input handling
+        });
+    })();
+    </script>
+</body>
+</html>

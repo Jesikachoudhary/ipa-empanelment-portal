@@ -1,0 +1,173 @@
+.about-us-section {
+    @extend .p-t-65;
+    @extend .p-b-100;
+}
+
+.service-box {
+    padding: 20px;
+    text-align: center;
+    color: $grey-700;
+    min-height: 170px;
+    margin-bottom: 30px;
+    transition: all .5s ease-in-out;
+
+    i{
+        font-size: 40px;
+        line-height: normal;
+    }
+    h5{
+        margin-top: 15px;
+        margin-bottom: 5px;
+        font-size: 17px;
+        color: $grey-800;
+    }
+    p{
+        font-size: 13px;
+        margin: 0;
+    }
+    &:hover{
+        box-shadow: 0 0 7px rgba(0, 0, 0, 0.15);
+    }
+}
+
+.fun-fact {
+    background-color: $white;
+    @extend .p-t-35;
+    @extend .p-b-35;
+    @extend .m-t-10;
+
+    .fun-fact-box {   
+
+        i {
+            @extend .displayblock;
+            font-size: 40px;
+            line-height: 40px;
+        }
+
+        .counter {
+            @extend .displayblock;
+            @extend .m-t-15;
+            @extend .m-b-10;
+            font-size: 40px;
+            line-height: 40px;
+            font-weight: $font-weight-normal;
+        }
+
+        p {
+            @extend .m-b-0;
+            font-size: 14px;
+            line-height: 20px;
+            font-weight: $font-weight-normal;
+        }
+    }
+}
+
+.why-choose-us {
+    @extend .p-t-65;
+    @extend .p-b-100;
+    background-color: #2d3035;
+
+    .common-cnt {
+        .section-top {
+
+        p {
+            font-size: 36px;
+            line-height: 45px;
+            font-weight: $font-weight-light;
+            color: $grey-400;
+            @extend .m-b-15;
+        }
+        }
+
+        > p {
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: $font-weight-light;
+        color: $grey-400;
+        }
+
+        .btn-primary {
+        color: $white;
+        &:hover {
+            color: $white;
+        }
+        }
+    }
+}
+
+.support-home {
+    background: #2d3035;
+    @extend .m-t-10;
+    @extend .p-t-35;
+    @extend .p-b-35;
+
+    h4 {
+        font-size: 30px;
+        line-height: 40px;
+        font-weight: $font-weight-normal;
+        color: $white;
+        @extend .m-b-5;
+        @extend .m-t-0;
+    }
+
+    p {
+        font-size: 16px;
+        line-height: 20px;
+        font-weight: $font-weight-normal;
+        color: $white;
+        @extend .m-b-20;
+    }
+
+    a.btn {
+        @extend .p-l-35;
+        @extend .p-r-35;
+        color: $white;
+        text-transform: uppercase;
+        font-size: 16px;
+        border-color: $white;
+        &:hover{
+            background: $white;
+            color: $grey-800;
+        }
+    }
+}
+
+.home-blog {
+    @extend .p-t-65;
+    @extend .p-b-100;
+
+    .blog-box {
+        background: $white;    
+        border-radius: $border-radius-large;
+        text-align: center;
+        @extend .p-t-10;
+        @extend .p-r-10;
+        @extend .p-b-10;
+        @extend .p-l-10;
+        @extend .m-b-30;
+    }
+}
+
+.hover-effect{
+    &:hover{
+        .hover-on{
+            opacity: 1;
+        }    
+    }
+    .hover-on{
+        @include transition(all .5s);
+        opacity: 0;
+        position: absolute;
+        background: rgba(256, 256, 256, 0.9);
+        display: flex;
+        height: 100%;
+        left: 0;
+        top: 0;
+        align-items: center;
+        text-align: center;
+        border-radius: 0.15rem;
+        color: #222222;
+        padding: 20px 30px;
+        font-size: 16px;
+    }
+}

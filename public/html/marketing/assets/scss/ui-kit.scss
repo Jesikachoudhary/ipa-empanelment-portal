@@ -1,0 +1,22 @@
+@import 'ui-kit/variables';
+@import 'ui-kit/mixins';
+
+// Core CSS
+@import "ui-kit/buttons";
+@import "ui-kit/inputs";
+@import "ui-kit/typography";
+
+// components
+@import "ui-kit/social-buttons";
+@import "ui-kit/navbar";
+@import "ui-kit/dropdown";
+@import "ui-kit/images";
+@import "ui-kit/nucleo-outline";
+@import "ui-kit/carousel";
+
+// example pages and sections
+//@import "ui-kit/example-pages";
+@import "ui-kit/sections";
+
+
+@import "ui-kit/responsive";

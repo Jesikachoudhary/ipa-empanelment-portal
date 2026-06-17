@@ -1,0 +1,15 @@
+
+.carousel{
+    min-height: 350px;
+    .carousel-item{
+        padding: 30px;
+        border: 1px solid rgba(256,256,256,0.1);
+        color: #fff;
+
+        p{
+            font-size: 17px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+    }
+}

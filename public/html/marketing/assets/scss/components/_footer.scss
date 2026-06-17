@@ -1,0 +1,69 @@
+#footer {
+    padding-top: 30px;
+    background-color: $white;    
+    .form {
+        border-radius: 5px;
+        padding: 30px;
+        margin-top: -130px;
+        background: $white;
+        box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.2);
+    }
+    .fcard {
+        @extend .m-b-30;
+
+        p {
+        color: $grey-700;
+        font-weight: $font-weight-normal;      
+        line-height: 24px;
+        }
+
+        &.links {
+        li {
+            line-height: 35px;
+            a {          
+            color: $grey-700;
+            position: relative;
+            @extend .p-l-20;
+
+            &::before{
+                content: "\f2fb";
+                position: absolute;
+                left: 0;
+                font-size: 15px;
+                font-family: "Material-Design-Iconic-Font";
+            }
+
+            &:hover{
+                color: $primary-color;
+            }
+            }
+        }
+        }
+        &.contact {
+        li {
+            i{
+            width: 25px;
+            }
+        }
+        }
+    }
+    .title {
+        color: $grey-900;
+        font-weight: 500;
+        font-size: 20px;
+        @extend .m-b-20;
+        @extend .p-t-20;
+    }
+}
+.copyright {    
+    @extend .m-t-20;
+    color: rgba($white, 0.8);
+    padding: 20px 0;
+
+    p {
+        @extend .margin-0;
+    }
+    * a {
+        color: $white;
+    }
+}
