@@ -1,10 +1,32 @@
 @extends('layouts.admin_inner')
 
 @section('content')
-<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white !important; padding: 30px 15px !important; margin: -20px -20px 20px -20px !important; position: relative !important; z-index: 10 !important; display: block !important;">
-    <div class="container-fluid">
-        <h2 style="color: white !important; font-weight: 600 !important; margin: 0 0 10px 0 !important; font-size: 28px !important; display: block !important;">Expression of Interest for Center of Excellence at IPA</h2>
-        <!--<h5 style="color: rgba(255, 255, 255, 0.8) !important; margin: 0 !important; display: block !important;">Applicant Form</h5>-->
+@php
+    $categoryConfig = config('applicant_types', []);
+    $currentCategory = session('applicant_type');
+    $categoryLabel = '';
+    $categoryColor = '#667eea';
+    
+    if ($currentCategory && isset($categoryConfig[$currentCategory])) {
+        $categoryLabel = $categoryConfig[$currentCategory]['label'];
+        $categoryColor = $categoryConfig[$currentCategory]['color'];
+    }
+@endphp
+<div style="background: linear-gradient(135deg, {{ $categoryColor }} 0%, {{ $categoryColor }}cc 100%) !important; color: white !important; padding: 30px 15px !important; margin: -20px -20px 20px -20px !important; position: relative !important; z-index: 10 !important; display: block !important;">
+    <div class="container-fluid" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1;">
+            <h2 style="color: white !important; font-weight: 600 !important; margin: 0 0 10px 0 !important; font-size: 28px !important; display: block !important;">Centre of Excellence- Empanelment of Emerging Talent and Aspiring Professionals</h2>
+            @if($categoryLabel)
+                <p style="color: rgba(255, 255, 255, 0.95) !important; margin: 8px 0 0 0 !important; font-size: 16px !important; display: block !important;"><strong>Category:</strong> {{ $categoryLabel }}</p>
+            @endif
+            @php $fy = \App\Models\Applicant::getCurrentFinancialYear(); @endphp
+            <p style="color: rgba(255, 255, 255, 0.9) !important; margin: 4px 0 0 0 !important; font-size: 14px !important; display: block !important;"><strong>FY:</strong> {{ $fy }}</p>
+        </div>
+        <div>
+            <a href="{{ route('admin.applicants.select-category') }}" class="btn btn-light btn-sm" style="margin-left: 20px; font-weight: 600;">
+                <i class="zmdi zmdi-dashboard"></i> Dashboard
+            </a>
+        </div>
     </div>
 </div>
 
@@ -18,6 +40,26 @@
             @endif
         </div>
     @endif
+
+    @php
+        $admin = auth('admin')->user();
+        $deadlineValue = \App\Models\Setting::registrationDeadline();
+        $registrationClosed = false;
+        if (! empty($deadlineValue) && \Carbon\Carbon::hasFormat($deadlineValue, 'Y-m-d')) {
+            $deadline = \Carbon\Carbon::createFromFormat('Y-m-d', $deadlineValue)->endOfDay();
+            $registrationClosed = !$admin->is_super && \Carbon\Carbon::now()->isAfter($deadline);
+        }
+    @endphp
+
+    @if($registrationClosed)
+        <div class="alert alert-warning alert-dismissible fade show" role="alert" style="border-left: 4px solid #ff9800;">
+            <strong><i class="zmdi zmdi-info"></i> Registration Closed</strong>
+            <p style="margin-top: 8px; margin-bottom: 0;">{{ \App\Models\Setting::registrationDeadlineMessage() }}</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @include('partials.applicant-category-badge')
 
     <form action="{{ route('admin.applicants.store') }}" method="POST" enctype="multipart/form-data" id="applicant-form">
         @csrf
@@ -45,30 +87,45 @@
                         <div class="form-group"><input type="text" name="contact_number" class="form-control @error('contact_number') is-invalid @enderror" value="{{ old('contact_number') }}">
                             @error('contact_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
+                        <label>Date of Birth <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="date" name="date_of_birth" class="form-control @error('date_of_birth') is-invalid @enderror" value="{{ old('date_of_birth') }}" title="Date format: MM/DD/YYYY">
+                            <small style="color: #6c757d; margin-top: 5px; display: block;">The candidate should not be more than 40 years of age as on 01 May 2026.</small>
+                            @error('date_of_birth')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label>
-                            Resume (Optional)
+                            Resume <span class="text-danger">*</span>
                             <i class="zmdi zmdi-info-outline" style="font-size: 14px; color: #0066cc; cursor: help; margin-left: 5px;" title="Accepted formats: PDF, DOC, DOCX. Maximum file size: 2 MB"></i>
                         </label>
-                        <div class="form-group"><input type="file" name="resume" class="form-control @error('resume') is-invalid @enderror" accept=".pdf,.doc,.docx"></div>
-                        @error('resume')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <input type="file" name="resume" class="form-control file-input @error('resume') is-invalid @enderror" accept=".pdf,.doc,.docx" data-field="resume" data-max-size="2097152" data-allowed-types="pdf,doc,docx" required>
+                            <small class="file-helper-text d-none" style="color: #6c757d; margin-top: 5px; display: block;">Max size: 2 MB | Formats: PDF, DOC, DOCX</small>
+                        </div>
+                        <div class="file-notification resume-notification d-none" style="margin-top: 10px;"></div>
+                        @error('resume')<div class="invalid-feedback" style="display: block;">{{ $message }}</div>@enderror
                         
                         <label>
                             Additional Document (Optional)
                             <i class="zmdi zmdi-info-outline" style="font-size: 14px; color: #0066cc; cursor: help; margin-left: 5px;" title="Accepted formats: PDF, DOC, DOCX. Maximum file size: 5 MB"></i>
                         </label>
-                        <div class="form-group"><input type="file" name="additional_document" class="form-control @error('additional_document') is-invalid @enderror" accept=".pdf,.doc,.docx"></div>
-                        @error('additional_document')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <div class="form-group">
+                            <input type="file" name="additional_document" class="form-control file-input @error('additional_document') is-invalid @enderror" accept=".pdf,.doc,.docx" data-field="additional_document" data-max-size="5242880" data-allowed-types="pdf,doc,docx">
+                            <small class="file-helper-text d-none" style="color: #6c757d; margin-top: 5px; display: block;">Max size: 5 MB | Formats: PDF, DOC, DOCX</small>
+                        </div>
+                        <div class="file-notification additional-document-notification d-none" style="margin-top: 10px;"></div>
+                        @error('additional_document')<div class="invalid-feedback" style="display: block;">{{ $message }}</div>@enderror
                     </div>
                 </div>
 
                 <hr>
                 <h5>Educational Qualifications <span class="text-danger">*</span></h5>
-                <div id="educations">
+                <div id="educations" class="education-container">
                     @php $oldEducations = old('educations', [['qualification'=>'','institution'=>'','year'=>'']]); @endphp
                     @foreach($oldEducations as $i => $eduRow)
                         <div class="education-row row mb-2" data-index="{{ $i }}">
+                            <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Education #{{ $i + 1 }}</strong></div>
                             <div class="col-md-5">
                                 <input type="text" name="educations[{{ $i }}][qualification]" placeholder="Qualification" class="form-control @if($errors->has('educations.'.$i.'.qualification')) is-invalid @endif" value="{{ $eduRow['qualification'] ?? '' }}">
                                 @if($errors->has('educations.'.$i.'.qualification'))<div class="invalid-feedback">{{ $errors->first('educations.'.$i.'.qualification') }}</div>@endif
@@ -90,16 +147,33 @@
                                 <button type="button" class="btn btn-sm btn-danger remove-education" title="Remove this education"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button>
                             </div>
                         </div>
+                        <div class="education-doc-row row mb-3 ms-2" data-index="{{ $i }}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                            <div class="col-md-10">
+                                <label style="font-size: 13px; color: #666;">
+                                    Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                                    <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if qualification is filled"></i>
+                                </label>
+                                <div style="margin-bottom: 8px;">
+                                    <input type="file" name="educations[{{ $i }}][document]" class="form-control form-control-sm edu-doc-upload @if($errors->has('educations.'.$i.'.document')) is-invalid @endif" accept=".pdf,.doc,.docx" data-index="{{ $i }}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                                    <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                                    <div class="edu-file-selected-{{ $i }}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e8f5e9; border-radius: 3px;">
+                                        <i class="zmdi zmdi-file" style="color: #4caf50; margin-right: 4px;"></i><span class="edu-file-name-{{ $i }}" style="font-size: 12px; color: #2e7d32; font-weight: 500;"></span>
+                                    </div>
+                                </div>
+                                @if($errors->has('educations.'.$i.'.document'))<div class="invalid-feedback" style="display: block;">{{ $errors->first('educations.'.$i.'.document') }}</div>@endif
+                            </div>
+                        </div>
                     @endforeach
                 </div>
                 <button type="button" id="add-education" class="btn btn-sm btn-primary">Add Education</button>
 
                 <hr>
                 <h5>Professional Experience</h5>
-                <div id="experiences">
+                <div id="experiences" class="experience-container">
                     @php $oldExperiences = old('experiences', [['organization'=>'','role'=>'','from_year'=>'','to_year'=>'','details'=>'']]); @endphp
                     @foreach($oldExperiences as $i => $expRow)
                         <div class="experience-row row mb-2" data-index="{{ $i }}">
+                            <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Experience #{{ $i + 1 }}</strong></div>
                             <div class="col-md-5">
                                 <input type="text" name="experiences[{{ $i }}][organization]" placeholder="Organization" class="form-control @if($errors->has('experiences.'.$i.'.organization')) is-invalid @endif" value="{{ $expRow['organization'] ?? '' }}">
                                 @if($errors->has('experiences.'.$i.'.organization'))<div class="invalid-feedback">{{ $errors->first('experiences.'.$i.'.organization') }}</div>@endif
@@ -152,6 +226,22 @@
                             <div class="col-md-4">
                                 <input type="text" name="experiences[{{ $i }}][details]" placeholder="Key Projects / Details" class="form-control @if($errors->has('experiences.'.$i.'.details')) is-invalid @endif" value="{{ $expRow['details'] ?? '' }}">
                                 @if($errors->has('experiences.'.$i.'.details'))<div class="invalid-feedback">{{ $errors->first('experiences.'.$i.'.details') }}</div>@endif
+                            </div>
+                        </div>
+                        <div class="experience-doc-row row mb-3 ms-2" data-index="{{ $i }}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                            <div class="col-md-10">
+                                <label style="font-size: 13px; color: #666;">
+                                    Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                                    <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if organization is filled"></i>
+                                </label>
+                                <div style="margin-bottom: 8px;">
+                                    <input type="file" name="experiences[{{ $i }}][document]" class="form-control form-control-sm exp-doc-upload @if($errors->has('experiences.'.$i.'.document')) is-invalid @endif" accept=".pdf,.doc,.docx" data-index="{{ $i }}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                                    <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                                    <div class="exp-file-selected-{{ $i }}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e3f2fd; border-radius: 3px;">
+                                        <i class="zmdi zmdi-file" style="color: #1976d2; margin-right: 4px;"></i><span class="exp-file-name-{{ $i }}" style="font-size: 12px; color: #0d47a1; font-weight: 500;"></span>
+                                    </div>
+                                </div>
+                                @if($errors->has('experiences.'.$i.'.document'))<div class="invalid-feedback" style="display: block;">{{ $errors->first('experiences.'.$i.'.document') }}</div>@endif
                             </div>
                         </div>
                     @endforeach
@@ -221,6 +311,27 @@
             if (fb) fb.textContent = '';
         }
 
+        // Auto-remove errors when field is being edited/filled
+        document.querySelectorAll('form input, form textarea, form select').forEach(function(field) {
+            const events = field.type === 'file' ? ['change'] : field.tagName === 'SELECT' ? ['change'] : ['input', 'change'];
+            events.forEach(function(eventType) {
+                field.addEventListener(eventType, function() {
+                    if (field.classList.contains('is-invalid')) {
+                        clearFieldError(field);
+                    }
+                });
+            });
+        });
+
+        // Auto-remove errors from checkboxes when clicked
+        document.querySelectorAll('form input[type="checkbox"]').forEach(function(field) {
+            field.addEventListener('change', function() {
+                if (field.classList.contains('is-invalid')) {
+                    clearFieldError(field);
+                }
+            });
+        });
+
         // Main category toggle
         document.querySelectorAll('.main-cat').forEach(function(mainCheckbox){
             mainCheckbox.addEventListener('change', function(){
@@ -260,6 +371,7 @@
             
             const html = `
                 <div class="education-row row mb-2" data-index="${idx}">
+                    <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Education #${idx + 1}</strong></div>
                     <div class="col-md-5">
                         <input type="text" name="educations[${idx}][qualification]" placeholder="Qualification" class="form-control">
                     </div>
@@ -273,6 +385,21 @@
                     </div>
                     <div class="col-md-2 remove-btn-col">
                         <button type="button" class="btn btn-sm btn-danger remove-education" title="Remove this education"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button>
+                    </div>
+                </div>
+                <div class="education-doc-row row mb-3 ms-2" data-index="${idx}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                    <div class="col-md-10">
+                        <label style="font-size: 13px; color: #666;">
+                            Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                            <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if qualification is filled"></i>
+                        </label>
+                        <div style="margin-bottom: 8px;">
+                            <input type="file" name="educations[${idx}][document]" class="form-control form-control-sm edu-doc-upload" accept=".pdf,.doc,.docx" data-index="${idx}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                            <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                            <div class="edu-file-selected-${idx}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e8f5e9; border-radius: 3px;">
+                                <i class="zmdi zmdi-file" style="color: #4caf50; margin-right: 4px;"></i><span class="edu-file-name-${idx}" style="font-size: 12px; color: #2e7d32; font-weight: 500;"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -302,6 +429,7 @@
             
             const html = `
                 <div class="experience-row row mb-2" data-index="${idx}">
+                    <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Experience #${idx + 1}</strong></div>
                     <div class="col-md-5">
                         <input type="text" name="experiences[${idx}][organization]" placeholder="Organization" class="form-control">
                     </div>
@@ -339,14 +467,31 @@
                         <input type="text" name="experiences[${idx}][details]" placeholder="Key Projects / Details" class="form-control">
                     </div>
                 </div>
+                <div class="experience-doc-row row mb-3 ms-2" data-index="${idx}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                    <div class="col-md-10">
+                        <label style="font-size: 13px; color: #666;">
+                            Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                            <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if organization is filled"></i>
+                        </label>
+                        <div style="margin-bottom: 8px;">
+                            <input type="file" name="experiences[${idx}][document]" class="form-control form-control-sm exp-doc-upload" accept=".pdf,.doc,.docx" data-index="${idx}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                            <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                            <div class="exp-file-selected-${idx}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e3f2fd; border-radius: 3px;">
+                                <i class="zmdi zmdi-file" style="color: #1976d2; margin-right: 4px;"></i><span class="exp-file-name-${idx}" style="font-size: 12px; color: #0d47a1; font-weight: 500;"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
             container.insertAdjacentHTML('beforeend', html);
             // Attach remove handler to new button
             container.querySelector('.remove-experience:last-of-type').addEventListener('click', removeExperienceRow);
             // Attach change handlers to newly added experience fields
-            const newExperienceSelects = container.querySelectorAll('.experience-row:last-of-type + .row select.exp-change');
+            const newExperienceSelects = container.querySelectorAll('.experience-row:last-of-type + .row select.exp-change, .experience-row:last-of-type + .row + .experience-doc-row');
             newExperienceSelects.forEach(el => {
-                el.addEventListener('change', calculateExperienceDuration);
+                if (el.tagName === 'SELECT') {
+                    el.addEventListener('change', calculateExperienceDuration);
+                }
             });
         });
 
@@ -449,6 +594,14 @@
                     if (q && q.value.trim() === '') { e.preventDefault(); showFieldError(q, '⚠️ Qualification is required'); valid = false; }
                     if (inst && inst.value.trim() === '') { e.preventDefault(); showFieldError(inst, '⚠️ Institution is required'); valid = false; }
                     if (yr && yr.value.trim() === '') { e.preventDefault(); showFieldError(yr, '⚠️ Year is required'); valid = false; }
+                    
+                    // Check if document is uploaded when any field is filled
+                    const docInput = document.querySelector(`.education-doc-row[data-index="${idx}"] input[name^="educations"][name$="[document]"]`);
+                    if (docInput && !docInput.files.length) {
+                        e.preventDefault();
+                        showFieldError(docInput, '⚠️ Document is required when education details are filled');
+                        valid = false;
+                    }
                 }
             });
 
@@ -465,6 +618,14 @@
                     if (role && role.value.trim() === '') { e.preventDefault(); showFieldError(role, '⚠️ Role is required'); valid = false; }
                     if (from && from.value.trim() === '') { e.preventDefault(); showFieldError(from, '⚠️ From Year is required'); valid = false; }
                     if (to && to.value.trim() === '') { e.preventDefault(); showFieldError(to, '⚠️ To Year is required'); valid = false; }
+                    
+                    // Check if document is uploaded when any field is filled
+                    const docInput = document.querySelector(`.experience-doc-row[data-index="${idx}"] input[name^="experiences"][name$="[document]"]`);
+                    if (docInput && !docInput.files.length) {
+                        e.preventDefault();
+                        showFieldError(docInput, '⚠️ Document is required when experience details are filled');
+                        valid = false;
+                    }
                 }
             });
 
@@ -486,6 +647,40 @@
             if (firstInvalid) firstInvalid.focus();
         });
 
+        // Show selected file names for education documents
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('edu-doc-upload')) {
+                const index = e.target.dataset.index;
+                const selectedDiv = document.querySelector(`.edu-file-selected-${index}`);
+                const fileNameSpan = document.querySelector(`.edu-file-name-${index}`);
+                
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    fileNameSpan.textContent = fileName;
+                    selectedDiv.style.display = 'block';
+                } else {
+                    selectedDiv.style.display = 'none';
+                }
+            }
+        });
+
+        // Show selected file names for experience documents
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('exp-doc-upload')) {
+                const index = e.target.dataset.index;
+                const selectedDiv = document.querySelector(`.exp-file-selected-${index}`);
+                const fileNameSpan = document.querySelector(`.exp-file-name-${index}`);
+                
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    fileNameSpan.textContent = fileName;
+                    selectedDiv.style.display = 'block';
+                } else {
+                    selectedDiv.style.display = 'none';
+                }
+            }
+        });
+
         // Reinitialize pickers when adding new rows (no picker library needed)
         document.getElementById('add-education').addEventListener('click', function(){
             // Year fields will use browser's native input handling
@@ -501,7 +696,18 @@
                 e.preventDefault();
                 const row = e.target.closest('.education-row');
                 if (row) {
+                    // Capture next siblings BEFORE removing anything
+                    let nextRow = row.nextElementSibling;
+                    let docRow = null;
+                    if (nextRow && nextRow.classList.contains('education-doc-row')) {
+                        docRow = nextRow;
+                    }
+                    
+                    // Now remove all rows
                     row.remove();
+                    if (docRow) {
+                        docRow.remove();
+                    }
                 }
             }
         });
@@ -511,12 +717,29 @@
             if (e.target.closest('.remove-experience')) {
                 e.preventDefault();
                 const row = e.target.closest('.experience-row');
-                const nextRow = row.nextElementSibling;
                 if (row) {
+                    // Capture all three related rows BEFORE removing anything
+                    let yearMonthRow = row.nextElementSibling;
+                    let docRow = null;
+                    
+                    // Check if next sibling is the year/month row
+                    if (yearMonthRow && yearMonthRow.classList.contains('row') && yearMonthRow.classList.contains('mb-2') && yearMonthRow.classList.contains('ms-2')) {
+                        // Check if row after that is the document row
+                        docRow = yearMonthRow.nextElementSibling;
+                        if (docRow && !docRow.classList.contains('experience-doc-row')) {
+                            docRow = null;
+                        }
+                    } else {
+                        yearMonthRow = null;
+                    }
+                    
+                    // Now remove all three rows
                     row.remove();
-                    // Also remove the related year/details row if it exists
-                    if (nextRow && nextRow.classList.contains('row') && nextRow.classList.contains('mb-2')) {
-                        nextRow.remove();
+                    if (yearMonthRow) {
+                        yearMonthRow.remove();
+                    }
+                    if (docRow) {
+                        docRow.remove();
                     }
                 }
             }
@@ -595,6 +818,111 @@
                 } catch(e) { /* noop */ }
             });
         });
+
+        // File Upload Validation
+        const fileInputs = document.querySelectorAll('input.file-input[type="file"]');
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toLowerCase();
+        }
+
+        function showFileNotification(fieldName, message, type = 'error') {
+            const notificationDiv = document.querySelector(`.${fieldName}-notification`);
+            if (!notificationDiv) return;
+
+            // Remove existing notification classes
+            notificationDiv.classList.remove('alert', 'alert-danger', 'alert-warning', 'alert-success');
+            
+            // Add appropriate alert class based on type
+            let alertClass = 'alert-danger';
+            if (type === 'warning') alertClass = 'alert-warning';
+            if (type === 'success') alertClass = 'alert-success';
+            
+            notificationDiv.classList.add('alert', alertClass);
+            notificationDiv.innerHTML = `<i class="zmdi ${type === 'error' ? 'zmdi-alert-circle' : type === 'warning' ? 'zmdi-alert-polygon' : 'zmdi-check-circle'}" style="margin-right: 8px;"></i>${message}`;
+            notificationDiv.classList.remove('d-none');
+        }
+
+        function hideFileNotification(fieldName) {
+            const notificationDiv = document.querySelector(`.${fieldName}-notification`);
+            if (notificationDiv) {
+                notificationDiv.classList.add('d-none');
+            }
+        }
+
+        fileInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                const fieldName = this.dataset.field;
+                const maxSize = parseInt(this.dataset.maxSize);
+                const allowedTypes = this.dataset.allowedTypes.split(',');
+                const file = this.files[0];
+
+                if (!file) {
+                    hideFileNotification(fieldName);
+                    this.classList.remove('is-invalid');
+                    return;
+                }
+
+                // Validate file type
+                const fileExtension = getFileExtension(file.name);
+                if (!allowedTypes.includes(fileExtension)) {
+                    const errorMsg = `❌ Invalid file format. Allowed formats: ${allowedTypes.map(t => t.toUpperCase()).join(', ')}`;
+                    showFileNotification(fieldName, errorMsg, 'error');
+                    this.classList.add('is-invalid');
+                    this.value = ''; // Clear the input
+                    return;
+                }
+
+                // Validate file size
+                if (file.size > maxSize) {
+                    const maxSizeMB = Math.floor(maxSize / 1024 / 1024);
+                    const fileSizeMB = formatFileSize(file.size);
+                    const errorMsg = `❌ File size (${fileSizeMB}) exceeds the maximum limit of ${maxSizeMB} MB`;
+                    showFileNotification(fieldName, errorMsg, 'error');
+                    this.classList.add('is-invalid');
+                    this.value = ''; // Clear the input
+                    return;
+                }
+
+                // Success notification
+                const successMsg = `✓ File "${file.name}" (${formatFileSize(file.size)}) selected successfully`;
+                showFileNotification(fieldName, successMsg, 'success');
+                this.classList.remove('is-invalid');
+            });
+
+            // Add file input focus/blur handlers for better UX
+            input.addEventListener('focus', function() {
+                document.querySelector(`.${this.dataset.field}-notification`).classList.add('d-none');
+            });
+        });
+
+        // Add validation on form submission
+        document.getElementById('applicant-form').addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            fileInputs.forEach(input => {
+                if (input.classList.contains('is-invalid')) {
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                const firstInvalidFile = document.querySelector('input.file-input.is-invalid');
+                if (firstInvalidFile) {
+                    firstInvalidFile.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+                return false;
+            }
+        }, {capture: true}); // Use capture phase to run before other listeners
     })();
     </script>
 @endpush
