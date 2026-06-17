@@ -1,6 +1,25 @@
 # IPA Empanelment Portal
 
-A Laravel-based admin portal for the **Indian Ports Association (IPA) Center of Excellence** empanelment process. It lets professionals register, verify their email, and submit an Expression of Interest (EOI) with their education and work experience, while super-admins review, edit, and export applicant records.
+A Laravel-based admin portal for the **Indian Ports Association (IPA) Center of Excellence** empanelment process. It lets professionals register, verify their email, select a category, and submit an Expression of Interest (EOI) with their education and work experience, while super-admins review, edit, and export applicant records.
+
+---
+
+## Screenshots
+
+### Login Page
+![Login](screenshots/login.png)
+
+### Register Page
+![Register](screenshots/register.png)
+
+### Super-Admin Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Category Selection
+![Category Selection](screenshots/category.png)
+
+### Applicant Form
+![Applicant Form](screenshots/form.png)
 
 ---
 
@@ -8,10 +27,13 @@ A Laravel-based admin portal for the **Indian Ports Association (IPA) Center of 
 
 - **Admin authentication** — registration, login, logout, and password reset with a dedicated `admin` auth guard (separate from the default user guard).
 - **Email verification** — a 6-digit code is emailed on registration and expires after 48 hours; unverified accounts cannot log in.
-- **Role-based access** — regular admins can create and manage their own application; super-admins can view, edit, delete, and export *all* applicants. Enforced via the `admin.super` middleware.
-- **Applicant management** — name, address, contact, category selection, multiple education entries, and multiple experience entries, plus resume and additional-document uploads (PDF/DOC/DOCX).
+- **Category-based application** — applicants choose from Consultant, Young Professional, or Startup before filling the EOI form.
+- **Financial year system** — applications are tracked per financial year (1 Apr – 31 Mar). Filter by past years using the FY filter.
+- **Age validation** — candidates must not be more than 40 years of age as on 01 May 2026.
+- **Role-based access** — regular admins manage their own application; super-admins view, edit, delete, filter, and export all applicants. Enforced via the `admin.super` middleware.
+- **Applicant management** — name, address, DOB, contact, category selection, multiple education entries, and multiple experience entries, plus resume and additional document uploads (PDF/DOC/DOCX).
 - **CSV export** — super-admins can export the full applicant list.
-- **Security hardening** — bcrypt password hashing (12 rounds), session regeneration on login/logout, login rate-limiting, encrypted route keys so applicant IDs are never exposed in URLs, and mass-assignment protection.
+- **Security hardening** — bcrypt password hashing (12 rounds), session regeneration on login/logout, login rate-limiting (5 attempts/min), encrypted route keys so applicant IDs are never exposed in URLs, and mass-assignment protection.
 
 ---
 
@@ -24,6 +46,23 @@ A Laravel-based admin portal for the **Indian Ports Association (IPA) Center of 
 | Frontend | Blade templates, Bootstrap-based admin theme |
 | Build | Vite |
 | Deployment | Docker / Docker Compose (optional) |
+
+---
+
+## Portal Routes
+
+| Route | Access | Description |
+|-------|--------|-------------|
+| `/admin/login` | Public | Admin login |
+| `/admin/register` | Public | Admin registration |
+| `/admin/verify` | Public | Email verification |
+| `/admin/dashboard` | Auth | Dashboard with stats |
+| `/admin/applicants/select-category` | Auth | Category selection page |
+| `/admin/applicants/create` | Auth | EOI application form |
+| `/admin/applicants` | Super Admin | All applicants list |
+| `/admin/applicants/export/csv` | Super Admin | CSV export |
+| `/admin/applicants/{id}/edit` | Super Admin | Edit applicant |
+| `/admin/admins` | Super Admin | Admin management |
 
 ---
 
@@ -68,22 +107,6 @@ docker-compose up -d
 
 ---
 
-## Project Structure
-
-```
-app/
-  Http/Controllers/   # Auth, applicant, and admin management controllers
-  Http/Middleware/    # AdminSuper (role enforcement), Authenticate
-  Models/             # Admin, Applicant, ApplicantEducation, ApplicantExperience
-  Notifications/      # Registration + password reset emails
-database/migrations/  # Schema (admins, applicants, education, experience, etc.)
-resources/views/admin # Blade views for the portal
-routes/web.php        # All routes
-tests/Feature/        # Feature tests
-```
-
----
-
 ## Testing
 
 ```bash
@@ -96,4 +119,4 @@ See [`APPLICANT_GUIDE.md`](APPLICANT_GUIDE.md) for the end-user walkthrough.
 
 ## Author
 
-Jesika Choudhary — B.Tech Information Technology, Manipal University Jaipur.
+Jesika Choudhary — B.Tech Information Technology, Manipal University Jaipur (2023–2027).
