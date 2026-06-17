@@ -1,10 +1,31 @@
 @extends('layouts.admin_inner')
 
 @section('content')
-<div style="color: white !important; padding: 30px 15px !important; margin: -20px -20px 20px -20px !important; position: relative !important; z-index: 10 !important; display: block !important;">
-    <div class="container-fluid">
-        <h2 style="color: white !important; font-weight: 600 !important; margin: 0 0 10px 0 !important; font-size: 28px !important; display: block !important;">Expression of Interest for Center of Excellence at IPA</h2>
-       <!-- <h5 style="color: rgba(255, 255, 255, 0.8) !important; margin: 0 !important; display: block !important;">Edit Applicant</h5>-->
+@php
+    $categoryConfig = config('applicant_types.types', []);
+    $currentCategory = $applicant->applicant_type;
+    $categoryLabel = '';
+    $categoryColor = '';
+    
+    if ($currentCategory && isset($categoryConfig[$currentCategory])) {
+        $categoryLabel = $categoryConfig[$currentCategory]['label'];
+        $categoryColor = $categoryConfig[$currentCategory]['color'];
+    }
+@endphp
+<div style=" {{ $categoryColor }}cc 100%) !important; color: white !important; padding: 30px 15px !important; margin: -20px -20px 20px -20px !important; position: relative !important; z-index: 10 !important; display: block !important;">
+    <div class="container-fluid" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1;">
+            <h2 style="color: white !important; font-weight: 600 !important; margin: 0 0 10px 0 !important; font-size: 28px !important; display: block !important;">Centre of Excellence- Empanelment of Emerging Talent and Aspiring Professionals</h2>
+            @if($categoryLabel)
+                <p style="color: rgba(255, 255, 255, 0.95) !important; margin: 8px 0 0 0 !important; font-size: 16px !important; display: block !important;"><strong>Category:</strong> {{ $categoryLabel }}</p>
+            @endif
+            <p style="color: rgba(255, 255, 255, 0.9) !important; margin: 4px 0 0 0 !important; font-size: 14px !important; display: block !important;"><strong>FY:</strong> {{ $applicant->application_fy ?? \App\Models\Applicant::getCurrentFinancialYear() }}</p>
+        </div>
+        <div>
+            <a href="{{ route('admin.applicants.select-category') }}" class="btn btn-light btn-sm" style="margin-left: 20px; font-weight: 600;">
+                <i class="zmdi zmdi-dashboard"></i> Dashboard
+            </a>
+        </div>
     </div>
 </div>
 
@@ -39,44 +60,115 @@
                         <div class="form-group"><input type="text" name="contact_number" class="form-control @error('contact_number') is-invalid @enderror" value="{{ old('contact_number', $applicant->contact_number) }}">
                             @error('contact_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
+                        <label>Date of Birth <span class="text-danger">*</span></label>
+                        <div class="form-group">
+                            <input type="date" name="date_of_birth" class="form-control @error('date_of_birth') is-invalid @enderror" value="{{ old('date_of_birth', $applicant->date_of_birth?->format('Y-m-d')) }}" title="Date format: MM/DD/YYYY">
+                            <small style="color: #6c757d; margin-top: 5px; display: block;">The candidate should not be more than 40 years of age as on 01 May 2026.</small>
+                            @error('date_of_birth')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label>
-                            Resume (Optional)
+                            Resume <span class="text-danger">*</span>
                             <i class="zmdi zmdi-info-outline" style="font-size: 14px; color: #0066cc; cursor: help; margin-left: 5px;" title="Accepted formats: PDF, DOC, DOCX. Maximum file size: 2 MB"></i>
                         </label>
-                        <div class="form-group"><input type="file" name="resume" class="form-control @error('resume') is-invalid @enderror" accept=".pdf,.doc,.docx"></div>
+                        <div class="form-group">
+                            <input type="file" name="resume" class="form-control file-input @error('resume') is-invalid @enderror" accept=".pdf,.doc,.docx" data-field="resume" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                            <small class="file-helper-text d-none" style="color: #6c757d; margin-top: 5px; display: block;">Max size: 2 MB | Formats: PDF, DOC, DOCX</small>
+                        </div>
+                        <div class="file-notification resume-notification d-none" style="margin-top: 10px;"></div>
                         @if($applicant->resume_path)
                             <div><a href="{{ asset('storage/'.$applicant->resume_path) }}" target="_blank">Download current resume</a></div>
                         @endif
-                        @error('resume')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @error('resume')<div class="invalid-feedback" style="display: block;">{{ $message }}</div>@enderror
                         
                         <label>
                             Additional Document (Optional)
                             <i class="zmdi zmdi-info-outline" style="font-size: 14px; color: #0066cc; cursor: help; margin-left: 5px;" title="Accepted formats: PDF, DOC, DOCX. Maximum file size: 5 MB"></i>
                         </label>
-                        <div class="form-group"><input type="file" name="additional_document" class="form-control @error('additional_document') is-invalid @enderror" accept=".pdf,.doc,.docx"></div>
+                        <div class="form-group">
+                            <input type="file" name="additional_document" class="form-control file-input @error('additional_document') is-invalid @enderror" accept=".pdf,.doc,.docx" data-field="additional_document" data-max-size="5242880" data-allowed-types="pdf,doc,docx">
+                            <small class="file-helper-text d-none" style="color: #6c757d; margin-top: 5px; display: block;">Max size: 5 MB | Formats: PDF, DOC, DOCX</small>
+                        </div>
+                        <div class="file-notification additional-document-notification d-none" style="margin-top: 10px;"></div>
                         @if($applicant->additional_document_path)
                             <div><a href="{{ asset('storage/'.$applicant->additional_document_path) }}" target="_blank">Download current additional document</a></div>
                         @endif
-                        @error('additional_document')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @error('additional_document')<div class="invalid-feedback" style="display: block;">{{ $message }}</div>@enderror
                     </div>
                 </div>
 
                 <hr>
                 <h5>Educational Qualifications <span class="text-danger">*</span></h5>
-                <div id="educations">
+                <div id="educations" class="education-container">
                     @php
+                        // Pre-load all educations with their documents
+                        $allEducationsWithDocs = $applicant->educations()->with('documents')->get()->keyBy('id');
+                        
                         $oldEducations = old('educations');
                         if (is_null($oldEducations)) {
-                            $oldEducations = $applicant->educations->map(function($e){
-                                return ['qualification'=>$e->qualification,'institution'=>$e->institution,'year'=>$e->year_of_passing];
+                            $oldEducations = $applicant->educations->load('documents')->map(function($e){
+                                return ['id' => $e->id, 'qualification'=>$e->qualification,'institution'=>$e->institution,'year'=>$e->year_of_passing];
                             })->toArray();
+                        } else {
+                            // Enhance old() data with IDs from database for existing rows
+                            $dbEducations = $applicant->educations->load('documents')->keyBy('id')->toArray();
+                            $allDbEducations = $applicant->educations->load('documents')->toArray();
+                            $usedIds = [];
+                            
+                            foreach ($oldEducations as $i => &$row) {
+                                // If row already has an ID, keep it (from hidden input)
+                                if (!empty($row['id'])) {
+                                    $usedIds[] = $row['id'];
+                                    continue;
+                                }
+                                
+                                // Try to match by qualification + institution combination first
+                                if (!empty($row['qualification'])) {
+                                    $matched = false;
+                                    foreach ($allDbEducations as $dbRow) {
+                                        if (!in_array($dbRow['id'], $usedIds) && 
+                                            $row['qualification'] === $dbRow['qualification'] &&
+                                            (empty($row['institution']) || $row['institution'] === $dbRow['institution'])) {
+                                            $row['id'] = $dbRow['id'];
+                                            $usedIds[] = $dbRow['id'];
+                                            $matched = true;
+                                            break;
+                                        }
+                                    }
+                                    if ($matched) continue;
+                                    
+                                    // Try matching by qualification only if institution didn't match
+                                    foreach ($allDbEducations as $dbRow) {
+                                        if (!in_array($dbRow['id'], $usedIds) && 
+                                            $row['qualification'] === $dbRow['qualification']) {
+                                            $row['id'] = $dbRow['id'];
+                                            $usedIds[] = $dbRow['id'];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         if (empty($oldEducations)) { $oldEducations = [['qualification'=>'','institution'=>'','year'=>'']]; }
                     @endphp
                     @foreach($oldEducations as $i => $eduRow)
-                        <div class="education-row row mb-2" data-index="{{ $i }}">
+                        <div class="education-row row mb-2" data-index="{{ $i }}" data-edu-id="{{ $eduRow['id'] ?? '' }}">
+                            <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;">
+                                <strong style="font-size: 16px; color: #333;">Education #{{ $i + 1 }}</strong>
+                                @php
+                                    $eduId = $eduRow['id'] ?? null;
+                                    $hasDocs = false;
+                                    if ($eduId && isset($allEducationsWithDocs[$eduId])) {
+                                        $edu = $allEducationsWithDocs[$eduId];
+                                        $hasDocs = $edu->documents && $edu->documents->count() > 0;
+                                    }
+                                @endphp
+                                @if($hasDocs)
+                                    <span style="display: inline-block; margin-left: 10px; background-color: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="zmdi zmdi-check-circle" style="margin-right: 4px;"></i>Document Uploaded</span>
+                                @endif
+                            </div>
+                            <input type="hidden" name="educations[{{ $i }}][id]" value="{{ $eduRow['id'] ?? '' }}">
                             <div class="col-md-5">
                                 <input type="text" name="educations[{{ $i }}][qualification]" placeholder="Qualification" class="form-control @if($errors->has('educations.'.$i.'.qualification')) is-invalid @endif" value="{{ $eduRow['qualification'] ?? '' }}">
                                 @if($errors->has('educations.'.$i.'.qualification'))<div class="invalid-feedback">{{ $errors->first('educations.'.$i.'.qualification') }}</div>@endif
@@ -98,24 +190,116 @@
                                 <button type="button" class="btn btn-sm btn-danger remove-education" title="Remove this education"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button>
                             </div>
                         </div>
+                        <div class="education-doc-row row mb-3 ms-2" data-index="{{ $i }}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                            <div class="col-md-10">
+                                <label style="font-size: 13px; color: #666;">
+                                    Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                                    <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if qualification is filled"></i>
+                                </label>
+                                @php
+                                    $eduId = $eduRow['id'] ?? null;
+                                    $docs = collect([]);
+                                    if ($eduId && isset($allEducationsWithDocs[$eduId])) {
+                                        $edu = $allEducationsWithDocs[$eduId];
+                                        $docs = $edu->documents ?? collect([]);
+                                    }
+                                @endphp
+                                @if($docs && $docs->count() > 0)
+                                    <div style="margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #28a745; display: block;">
+                                        <div style="font-size: 12px; font-weight: 600; color: #28a745; margin-bottom: 6px;"><i class="zmdi zmdi-check-circle" style="margin-right: 4px;"></i>Existing Document(s)</div>
+                                        @foreach($docs as $doc)
+                                            <div style="margin: 4px 0;">
+                                                <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="btn btn-sm btn-outline-success" style="font-size: 11px;"><i class="zmdi zmdi-download" style="margin-right: 4px;"></i>View Document</a>
+                                                <span style="font-size: 11px; color: #666; margin-left: 8px;">{{ basename($doc->file_path) }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <div style="margin-bottom: 8px;">
+                                    <input type="file" name="educations[{{ $i }}][document]" class="form-control form-control-sm edu-doc-upload @if($errors->has('educations.'.$i.'.document')) is-invalid @endif" accept=".pdf,.doc,.docx" data-index="{{ $i }}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                                    <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                                    <div class="edu-file-selected-{{ $i }}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e8f5e9; border-radius: 3px;">
+                                        <i class="zmdi zmdi-file" style="color: #4caf50; margin-right: 4px;"></i><span class="edu-file-name-{{ $i }}" style="font-size: 12px; color: #2e7d32; font-weight: 500;"></span>
+                                    </div>
+                                </div>
+                                @if($errors->has('educations.'.$i.'.document'))<div class="invalid-feedback" style="display: block;">{{ $errors->first('educations.'.$i.'.document') }}</div>@endif
+                            </div>
+                        </div>
                     @endforeach
                 </div>
                 <button type="button" id="add-education" class="btn btn-sm btn-primary">Add Education</button>
 
                 <hr>
                 <h5>Experience (Organisation-wise)</h5>
-                <div id="experiences">
+                <div id="experiences" class="experience-container">
                     @php
+                        // Pre-load all experiences with their documents
+                        $allExperiencesWithDocs = $applicant->experiences()->with('documents')->get()->keyBy('id');
+                        
                         $oldExps = old('experiences');
                         if (is_null($oldExps)) {
-                            $oldExps = $applicant->experiences->map(function($e){
-                                return ['organization'=>$e->organization,'role'=>$e->role,'from_year'=>$e->from_year,'from_month'=>$e->from_month,'to_year'=>$e->to_year,'to_month'=>$e->to_month,'details'=>$e->details];
+                            $oldExps = $applicant->experiences->load('documents')->map(function($e){
+                                return ['id' => $e->id, 'organization'=>$e->organization,'role'=>$e->role,'from_year'=>$e->from_year,'from_month'=>$e->from_month,'to_year'=>$e->to_year,'to_month'=>$e->to_month,'details'=>$e->details];
                             })->toArray();
+                        } else {
+                            // Enhance old() data with IDs from database for existing rows
+                            $dbExperiences = $applicant->experiences->load('documents')->keyBy('id')->toArray();
+                            $allDbExperiences = $applicant->experiences->load('documents')->toArray();
+                            $usedIds = [];
+                            
+                            foreach ($oldExps as $j => &$row) {
+                                // If row already has an ID, keep it (from hidden input)
+                                if (!empty($row['id'])) {
+                                    $usedIds[] = $row['id'];
+                                    continue;
+                                }
+                                
+                                // Try to match by organization + role combination first
+                                if (!empty($row['organization'])) {
+                                    $matched = false;
+                                    foreach ($allDbExperiences as $dbRow) {
+                                        if (!in_array($dbRow['id'], $usedIds) && 
+                                            $row['organization'] === $dbRow['organization'] &&
+                                            (empty($row['role']) || $row['role'] === $dbRow['role'])) {
+                                            $row['id'] = $dbRow['id'];
+                                            $usedIds[] = $dbRow['id'];
+                                            $matched = true;
+                                            break;
+                                        }
+                                    }
+                                    if ($matched) continue;
+                                    
+                                    // Try matching by organization only if role didn't match
+                                    foreach ($allDbExperiences as $dbRow) {
+                                        if (!in_array($dbRow['id'], $usedIds) && 
+                                            $row['organization'] === $dbRow['organization']) {
+                                            $row['id'] = $dbRow['id'];
+                                            $usedIds[] = $dbRow['id'];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         if (empty($oldExps)) { $oldExps = [['organization'=>'','role'=>'','from_year'=>'','from_month'=>'','to_year'=>'','to_month'=>'','details'=>'']]; }
                     @endphp
                     @foreach($oldExps as $j => $exp)
-                        <div class="experience-row row mb-2" data-index="{{ $j }}">
+                        <div class="experience-row row mb-2" data-index="{{ $j }}" data-exp-id="{{ $exp['id'] ?? '' }}">
+                            <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;">
+                                <strong style="font-size: 16px; color: #333;">Experience #{{ $j + 1 }}</strong>
+                                @php
+                                    $expId = $exp['id'] ?? null;
+                                    $hasDocs = false;
+                                    if ($expId && isset($allExperiencesWithDocs[$expId])) {
+                                        $expModel = $allExperiencesWithDocs[$expId];
+                                        $hasDocs = $expModel->documents && $expModel->documents->count() > 0;
+                                    }
+                                @endphp
+                                @if($hasDocs)
+                                    <span style="display: inline-block; margin-left: 10px; background-color: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;"><i class="zmdi zmdi-check-circle" style="margin-right: 4px;"></i>Document Uploaded</span>
+                                @endif
+                            </div>
+                            <input type="hidden" name="experiences[{{ $j }}][id]" value="{{ $exp['id'] ?? '' }}">
                             <div class="col-md-5">
                                 <input type="text" name="experiences[{{ $j }}][organization]" placeholder="Organization" class="form-control @if($errors->has('experiences.'.$j.'.organization')) is-invalid @endif" value="{{ $exp['organization'] ?? '' }}">
                                 @if($errors->has('experiences.'.$j.'.organization'))<div class="invalid-feedback">{{ $errors->first('experiences.'.$j.'.organization') }}</div>@endif
@@ -128,7 +312,7 @@
                                 <button type="button" class="btn btn-sm btn-danger remove-experience" title="Remove this experience"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button>
                             </div>
                         </div>
-                        <div class="row mb-2">
+                        <div class="row mb-2 ms-2">
                             <div class="col-md-2">
                                 <select name="experiences[{{ $j }}][from_year]" class="form-control ms from-year @if($errors->has('experiences.'.$j.'.from_year')) is-invalid @endif" style="font-size: 16px; padding: 10px; height: 45px;">
                                     <option value="">From Year</option>
@@ -170,9 +354,43 @@
                                 @if($errors->has('experiences.'.$j.'.details'))<div class="invalid-feedback">{{ $errors->first('experiences.'.$j.'.details') }}</div>@endif
                             </div>
                         </div>
+                        <div class="experience-doc-row row mb-3 ms-2" data-index="{{ $j }}" style="border-left: 3px solid #e0e0e0; padding-left: 15px;">
+                            <div class="col-md-10">
+                                <label style="font-size: 13px; color: #666;">
+                                    Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                                    <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if organization is filled"></i>
+                                </label>
+                                @php
+                                    $expId = $exp['id'] ?? null;
+                                    $docs = collect([]);
+                                    if ($expId && isset($allExperiencesWithDocs[$expId])) {
+                                        $expModel = $allExperiencesWithDocs[$expId];
+                                        $docs = $expModel->documents ?? collect([]);
+                                    }
+                                @endphp
+                                @if($docs && $docs->count() > 0)
+                                    <div style="margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #28a745; display: block;">
+                                        <div style="font-size: 12px; font-weight: 600; color: #28a745; margin-bottom: 6px;"><i class="zmdi zmdi-check-circle" style="margin-right: 4px;"></i>Existing Document(s)</div>
+                                        @foreach($docs as $doc)
+                                            <div style="margin: 4px 0;">
+                                                <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="btn btn-sm btn-outline-success" style="font-size: 11px;"><i class="zmdi zmdi-download" style="margin-right: 4px;"></i>View Document</a>
+                                                <span style="font-size: 11px; color: #666; margin-left: 8px;">{{ basename($doc->file_path) }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <div style="margin-bottom: 8px;">
+                                    <input type="file" name="experiences[{{ $j }}][document]" class="form-control form-control-sm exp-doc-upload @if($errors->has('experiences.'.$j.'.document')) is-invalid @endif" accept=".pdf,.doc,.docx" data-index="{{ $j }}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                                    <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                                    <div class="exp-file-selected-{{ $j }}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e3f2fd; border-radius: 3px;">
+                                        <i class="zmdi zmdi-file" style="color: #1976d2; margin-right: 4px;"></i><span class="exp-file-name-{{ $j }}" style="font-size: 12px; color: #0d47a1; font-weight: 500;"></span>
+                                    </div>
+                                </div>
+                                @if($errors->has('experiences.'.$j.'.document'))<div class="invalid-feedback" style="display: block;">{{ $errors->first('experiences.'.$j.'.document') }}</div>@endif
+                            </div>
+                        </div>
                     @endforeach
                 </div>
-                
                 <button type="button" id="add-experience" class="btn btn-sm btn-primary">Add Experience</button>
 
                 <hr>
@@ -232,9 +450,6 @@
         let eduIndex = document.querySelectorAll('#educations .education-row').length;
         document.getElementById('add-education').addEventListener('click', function(){
             const container = document.getElementById('educations');
-            const div = document.createElement('div');
-            div.className = 'education-row row mb-2';
-            div.setAttribute('data-index', eduIndex);
             
             // Generate year options
             let yearOptions = '<option value="">Year</option>';
@@ -243,14 +458,38 @@
                 yearOptions += `<option value="${y}">${y}</option>`;
             }
             
-            div.innerHTML = `
+            const eduRow = document.createElement('div');
+            eduRow.className = 'education-row row mb-2';
+            eduRow.setAttribute('data-index', eduIndex);
+            eduRow.innerHTML = `
+                <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Education #${eduIndex + 1}</strong></div>
                 <div class="col-md-5"><input type="text" name="educations[${eduIndex}][qualification]" placeholder="Qualification" class="form-control"></div>
                 <div class="col-md-3"><input type="text" name="educations[${eduIndex}][institution]" placeholder="Institution" class="form-control"></div>
                 <div class="col-md-2"><select name="educations[${eduIndex}][year]" class="form-control ms">${yearOptions}</select></div>
                 <div class="col-md-2 remove-btn-col" style="display: inline-block;"><button type="button" class="btn btn-sm btn-danger remove-education" title="Remove this education"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button></div>
             `;
-            container.appendChild(div);
-            container.querySelector('.remove-education:last-of-type').addEventListener('click', removeEducationRow);
+            container.appendChild(eduRow);
+
+            const docRow = document.createElement('div');
+            docRow.className = 'education-doc-row row mb-3 ms-2';
+            docRow.setAttribute('data-index', eduIndex);
+            docRow.style.cssText = 'border-left: 3px solid #e0e0e0; padding-left: 15px;';
+            docRow.innerHTML = `
+                <div class="col-md-10">
+                    <label style="font-size: 13px; color: #666;">
+                        Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                        <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if qualification is filled"></i>
+                    </label>
+                    <div style="margin-bottom: 8px;">
+                        <input type="file" name="educations[${eduIndex}][document]" class="form-control form-control-sm edu-doc-upload" accept=".pdf,.doc,.docx" data-index="${eduIndex}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                        <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                        <div class="edu-file-selected-${eduIndex}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e8f5e9; border-radius: 3px;">
+                            <i class="zmdi zmdi-file" style="color: #4caf50; margin-right: 4px;"></i><span class="edu-file-name-${eduIndex}" style="font-size: 12px; color: #2e7d32; font-weight: 500;"></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(docRow);
             eduIndex++;
         });
 
@@ -277,6 +516,7 @@
             div1.className = 'experience-row row mb-2';
             div1.setAttribute('data-index', expIndex);
             div1.innerHTML = `
+                <div class="col-md-12 mb-2" style="padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;"><strong style="font-size: 16px; color: #333;">Experience #${expIndex + 1}</strong></div>
                 <div class="col-md-5"><input type="text" name="experiences[${expIndex}][organization]" placeholder="Organization" class="form-control"></div>
                 <div class="col-md-5"><input type="text" name="experiences[${expIndex}][role]" placeholder="Role" class="form-control"></div>
                 <div class="col-md-2 remove-btn-col" style="display: inline-block;"><button type="button" class="btn btn-sm btn-danger remove-experience" title="Remove this experience"><i class="zmdi zmdi-delete" style="font-size: 14px;"></i></button></div>
@@ -285,7 +525,8 @@
             
             // Second row: years, months, and details
             const div2 = document.createElement('div');
-            div2.className = 'row mb-2';
+            div2.className = 'experience-year-month-row row mb-2 ms-2';
+            div2.setAttribute('data-index', expIndex);
             div2.innerHTML = `
                 <div class="col-md-2"><select name="experiences[${expIndex}][from_year]" class="form-control ms from-year exp-change" style="font-size: 16px; padding: 10px; height: 45px;"><option value="">From Year</option>${yearOptions}</select></div>
                 <div class="col-md-2"><select name="experiences[${expIndex}][from_month]" class="form-control ms from-month exp-change" style="font-size: 16px; padding: 10px; height: 45px;">${monthOptions}</select></div>
@@ -294,8 +535,28 @@
                 <div class="col-md-4"><textarea name="experiences[${expIndex}][details]" placeholder="Details" class="form-control"></textarea></div>
             `;
             container.appendChild(div2);
-            
-            container.querySelector('.remove-experience:last-of-type').addEventListener('click', removeExperienceRow);
+
+            // Third row: document upload
+            const div3 = document.createElement('div');
+            div3.className = 'experience-doc-row row mb-3 ms-2';
+            div3.setAttribute('data-index', expIndex);
+            div3.style.cssText = 'border-left: 3px solid #e0e0e0; padding-left: 15px;';
+            div3.innerHTML = `
+                <div class="col-md-10">
+                    <label style="font-size: 13px; color: #666;">
+                        Document <span class="doc-required-badge" style="color: #dc3545; font-weight: bold;">*</span>
+                        <i class="zmdi zmdi-info-outline" style="font-size: 12px; color: #0066cc; cursor: help;" title="PDF, DOC, DOCX files. Max 2MB - Required if organization is filled"></i>
+                    </label>
+                    <div style="margin-bottom: 8px;">
+                        <input type="file" name="experiences[${expIndex}][document]" class="form-control form-control-sm exp-doc-upload" accept=".pdf,.doc,.docx" data-index="${expIndex}" data-max-size="2097152" data-allowed-types="pdf,doc,docx">
+                        <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 3px;">Max: 2MB | Formats: PDF, DOC, DOCX</small>
+                        <div class="exp-file-selected-${expIndex}" style="margin-top: 6px; display: none; padding: 6px; background-color: #e3f2fd; border-radius: 3px;">
+                            <i class="zmdi zmdi-file" style="color: #1976d2; margin-right: 4px;"></i><span class="exp-file-name-${expIndex}" style="font-size: 12px; color: #0d47a1; font-weight: 500;"></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div3);
             expIndex++;
         });
 
@@ -320,7 +581,18 @@
                 e.preventDefault();
                 const row = e.target.closest('.education-row');
                 if (row) {
+                    // Capture next siblings BEFORE removing anything
+                    let nextRow = row.nextElementSibling;
+                    let docRow = null;
+                    if (nextRow && nextRow.classList.contains('education-doc-row')) {
+                        docRow = nextRow;
+                    }
+                    
+                    // Now remove all rows
                     row.remove();
+                    if (docRow) {
+                        docRow.remove();
+                    }
                 }
             }
         });
@@ -330,12 +602,29 @@
             if (e.target.closest('.remove-experience')) {
                 e.preventDefault();
                 const row = e.target.closest('.experience-row');
-                const nextRow = row.nextElementSibling;
                 if (row) {
+                    // Capture all three related rows BEFORE removing anything
+                    let yearMonthRow = row.nextElementSibling;
+                    let docRow = null;
+                    
+                    // Check if next sibling is the year/month row
+                    if (yearMonthRow && yearMonthRow.classList.contains('row') && yearMonthRow.classList.contains('mb-2') && yearMonthRow.classList.contains('ms-2')) {
+                        // Check if row after that is the document row
+                        docRow = yearMonthRow.nextElementSibling;
+                        if (docRow && !docRow.classList.contains('experience-doc-row')) {
+                            docRow = null;
+                        }
+                    } else {
+                        yearMonthRow = null;
+                    }
+                    
+                    // Now remove all three rows
                     row.remove();
-                    // Also remove the related year/details row if it exists
-                    if (nextRow && nextRow.classList.contains('row') && nextRow.classList.contains('mb-2')) {
-                        nextRow.remove();
+                    if (yearMonthRow) {
+                        yearMonthRow.remove();
+                    }
+                    if (docRow) {
+                        docRow.remove();
                     }
                 }
             }
@@ -427,6 +716,27 @@
                 if (phoneRegex.test(this.value)) clearFieldError(this); else showFieldError(this,'⚠️ Mobile number must be exactly 10 digits');
             });
         }
+
+        // Auto-remove errors when field is being edited/filled
+        document.querySelectorAll('#applicant-form input, #applicant-form textarea, #applicant-form select').forEach(function(field) {
+            const events = field.type === 'file' ? ['change'] : field.tagName === 'SELECT' ? ['change'] : ['input', 'change'];
+            events.forEach(function(eventType) {
+                field.addEventListener(eventType, function() {
+                    if (field.classList.contains('is-invalid')) {
+                        clearFieldError(field);
+                    }
+                });
+            });
+        });
+
+        // Auto-remove errors from checkboxes when clicked
+        document.querySelectorAll('#applicant-form input[type="checkbox"]').forEach(function(field) {
+            field.addEventListener('change', function() {
+                if (field.classList.contains('is-invalid')) {
+                    clearFieldError(field);
+                }
+            });
+        });
 
         function validateYears() {
             const errors = [];
@@ -520,6 +830,18 @@
                     if (q && q.value.trim() === '') { e.preventDefault(); showFieldError(q, '⚠️ Qualification is required'); valid = false; }
                     if (inst && inst.value.trim() === '') { e.preventDefault(); showFieldError(inst, '⚠️ Institution is required'); valid = false; }
                     if (yr && yr.value.trim() === '') { e.preventDefault(); showFieldError(yr, '⚠️ Year is required'); valid = false; }
+                    
+                    // Check if document is uploaded when any field is filled
+                    const docRow = document.querySelector(`.education-doc-row[data-index="${idx}"]`);
+                    const existingDocLink = docRow ? docRow.querySelector('a[href*="storage"]') : null;
+                    const docInput = docRow ? docRow.querySelector('input[name^="educations"][name$="[document]"]') : null;
+                    
+                    // Only require document if no existing document AND no new file selected
+                    if (docInput && !docInput.files.length && !existingDocLink) {
+                        e.preventDefault();
+                        showFieldError(docInput, '⚠️ Document is required when education details are filled');
+                        valid = false;
+                    }
                 }
             });
 
@@ -536,7 +858,18 @@
                     if (role && role.value.trim() === '') { e.preventDefault(); showFieldError(role, '⚠️ Role is required'); valid = false; }
                     if (from && from.value.trim() === '') { e.preventDefault(); showFieldError(from, '⚠️ From Year is required'); valid = false; }
                     if (to && to.value.trim() === '') { e.preventDefault(); showFieldError(to, '⚠️ To Year is required'); valid = false; }
-                    if (details && details.value.trim() === '') { e.preventDefault(); showFieldError(details, '⚠️ Details/Reason is required'); valid = false; }
+                    
+                    // Check if document is uploaded when any field is filled
+                    const docRow = document.querySelector(`.experience-doc-row[data-index="${idx}"]`);
+                    const existingDocLink = docRow ? docRow.querySelector('a[href*="storage"]') : null;
+                    const docInput = docRow ? docRow.querySelector('input[name^="experiences"][name$="[document]"]') : null;
+                    
+                    // Only require document if no existing document AND no new file selected
+                    if (docInput && !docInput.files.length && !existingDocLink) {
+                        e.preventDefault();
+                        showFieldError(docInput, '⚠️ Document is required when experience details are filled');
+                        valid = false;
+                    }
                 }
             });
 
@@ -553,6 +886,244 @@
             const firstInvalid = document.querySelector('.is-invalid');
             if (firstInvalid) { firstInvalid.scrollIntoView({behavior:'smooth', block:'center'}); firstInvalid.focus(); }
         });
+
+        // Show selected file names for education documents
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('edu-doc-upload')) {
+                const index = e.target.dataset.index;
+                const selectedDiv = document.querySelector(`.edu-file-selected-${index}`);
+                const fileNameSpan = document.querySelector(`.edu-file-name-${index}`);
+                const docRow = e.target.closest('.education-doc-row');
+                const rowDiv = docRow ? docRow.previousElementSibling : null;
+                
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    fileNameSpan.textContent = fileName;
+                    selectedDiv.style.display = 'block';
+                    
+                    // Add badge to row title if not already present
+                    if (rowDiv && !rowDiv.querySelector('[style*="background-color: #28a745"]')) {
+                        const badge = document.createElement('span');
+                        badge.style.cssText = 'display: inline-block; margin-left: 10px; background-color: #ffc107; color: #000; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;';
+                        badge.innerHTML = '<i class="zmdi zmdi-file" style="margin-right: 4px;"></i>File Selected';
+                        rowDiv.querySelector('strong').parentNode.appendChild(badge);
+                    }
+                } else {
+                    selectedDiv.style.display = 'none';
+                    
+                    // Remove "File Selected" badge if no file and no existing document
+                    if (rowDiv) {
+                        const existingDocDiv = docRow.querySelector('[style*="background-color: #f8f9fa"]');
+                        const hasExisting = existingDocDiv && existingDocDiv.innerHTML.trim();
+                        if (!hasExisting) {
+                            const fileBadge = rowDiv.querySelector('span:has(i.zmdi-file)');
+                            if (fileBadge) fileBadge.remove();
+                        }
+                    }
+                }
+            }
+        });
+
+        // Show selected file names for experience documents
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('exp-doc-upload')) {
+                const index = e.target.dataset.index;
+                const selectedDiv = document.querySelector(`.exp-file-selected-${index}`);
+                const fileNameSpan = document.querySelector(`.exp-file-name-${index}`);
+                const docRow = e.target.closest('.experience-doc-row');
+                const rowDiv = docRow ? docRow.parentElement.querySelector('.experience-row[data-index="' + index + '"]') : null;
+                
+                if (e.target.files.length > 0) {
+                    const fileName = e.target.files[0].name;
+                    fileNameSpan.textContent = fileName;
+                    selectedDiv.style.display = 'block';
+                    
+                    // Add badge to row title if not already present
+                    if (rowDiv && !rowDiv.querySelector('span:has(i.zmdi-file)')) {
+                        const badge = document.createElement('span');
+                        badge.style.cssText = 'display: inline-block; margin-left: 10px; background-color: #ffc107; color: #000; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;';
+                        badge.innerHTML = '<i class="zmdi zmdi-file" style="margin-right: 4px;"></i>File Selected';
+                        rowDiv.querySelector('strong').parentNode.appendChild(badge);
+                    }
+                } else {
+                    selectedDiv.style.display = 'none';
+                    
+                    // Remove "File Selected" badge if no file and no existing document
+                    if (rowDiv) {
+                        const existingDocDiv = docRow.querySelector('[style*="background-color: #f8f9fa"]');
+                        const hasExisting = existingDocDiv && existingDocDiv.innerHTML.trim();
+                        if (!hasExisting) {
+                            const fileBadge = rowDiv.querySelector('span:has(i.zmdi-file)');
+                            if (fileBadge) fileBadge.remove();
+                        }
+                    }
+                }
+            }
+        });
+
+        // Initialize document display status on page load and DOM ready
+        function initializeDocumentDisplay() {
+            // Check each education row for existing documents
+            document.querySelectorAll('.education-doc-row').forEach(docRow => {
+                const index = docRow.dataset.index;
+                const existingDocDiv = docRow.querySelector('[style*="background-color: #f8f9fa"]');
+                const selectedFileDiv = docRow.querySelector(`.edu-file-selected-${index}`);
+                const fileInput = docRow.querySelector(`.edu-doc-upload`);
+                
+                // Show existing document div if it has content
+                if (existingDocDiv) {
+                    const hasContent = existingDocDiv.querySelector('a') !== null || existingDocDiv.innerHTML.trim().length > 50;
+                    if (hasContent) {
+                        existingDocDiv.style.display = 'block';
+                    }
+                }
+                
+                // Show indicator if file selected
+                if (fileInput && fileInput.files.length > 0 && selectedFileDiv) {
+                    const fileName = fileInput.files[0].name;
+                    selectedFileDiv.querySelector(`.edu-file-name-${index}`).textContent = fileName;
+                    selectedFileDiv.style.display = 'block';
+                }
+            });
+
+            // Check each experience row for existing documents
+            document.querySelectorAll('.experience-doc-row').forEach(docRow => {
+                const index = docRow.dataset.index;
+                const existingDocDiv = docRow.querySelector('[style*="background-color: #f8f9fa"]');
+                const selectedFileDiv = docRow.querySelector(`.exp-file-selected-${index}`);
+                const fileInput = docRow.querySelector(`.exp-doc-upload`);
+                
+                // Show existing document div if it has content
+                if (existingDocDiv) {
+                    const hasContent = existingDocDiv.querySelector('a') !== null || existingDocDiv.innerHTML.trim().length > 50;
+                    if (hasContent) {
+                        existingDocDiv.style.display = 'block';
+                    }
+                }
+                
+                // Show indicator if file selected
+                if (fileInput && fileInput.files.length > 0 && selectedFileDiv) {
+                    const fileName = fileInput.files[0].name;
+                    selectedFileDiv.querySelector(`.exp-file-name-${index}`).textContent = fileName;
+                    selectedFileDiv.style.display = 'block';
+                }
+            });
+        }
+
+        // Initialize on DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeDocumentDisplay);
+        } else {
+            initializeDocumentDisplay();
+        }
+
+        // Also initialize on window load
+        window.addEventListener('load', initializeDocumentDisplay);
+
+        // File Upload Validation
+        const fileInputs = document.querySelectorAll('input.file-input[type="file"]');
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toLowerCase();
+        }
+
+        function showFileNotification(fieldName, message, type = 'error') {
+            const notificationDiv = document.querySelector(`.${fieldName}-notification`);
+            if (!notificationDiv) return;
+
+            // Remove existing notification classes
+            notificationDiv.classList.remove('alert', 'alert-danger', 'alert-warning', 'alert-success');
+            
+            // Add appropriate alert class based on type
+            let alertClass = 'alert-danger';
+            if (type === 'warning') alertClass = 'alert-warning';
+            if (type === 'success') alertClass = 'alert-success';
+            
+            notificationDiv.classList.add('alert', alertClass);
+            notificationDiv.innerHTML = `<i class="zmdi ${type === 'error' ? 'zmdi-alert-circle' : type === 'warning' ? 'zmdi-alert-polygon' : 'zmdi-check-circle'}" style="margin-right: 8px;"></i>${message}`;
+            notificationDiv.classList.remove('d-none');
+        }
+
+        function hideFileNotification(fieldName) {
+            const notificationDiv = document.querySelector(`.${fieldName}-notification`);
+            if (notificationDiv) {
+                notificationDiv.classList.add('d-none');
+            }
+        }
+
+        fileInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                const fieldName = this.dataset.field;
+                const maxSize = parseInt(this.dataset.maxSize);
+                const allowedTypes = this.dataset.allowedTypes.split(',');
+                const file = this.files[0];
+
+                if (!file) {
+                    hideFileNotification(fieldName);
+                    this.classList.remove('is-invalid');
+                    return;
+                }
+
+                // Validate file type
+                const fileExtension = getFileExtension(file.name);
+                if (!allowedTypes.includes(fileExtension)) {
+                    const errorMsg = `❌ Invalid file format. Allowed formats: ${allowedTypes.map(t => t.toUpperCase()).join(', ')}`;
+                    showFileNotification(fieldName, errorMsg, 'error');
+                    this.classList.add('is-invalid');
+                    this.value = ''; // Clear the input
+                    return;
+                }
+
+                // Validate file size
+                if (file.size > maxSize) {
+                    const maxSizeMB = Math.floor(maxSize / 1024 / 1024);
+                    const fileSizeMB = formatFileSize(file.size);
+                    const errorMsg = `❌ File size (${fileSizeMB}) exceeds the maximum limit of ${maxSizeMB} MB`;
+                    showFileNotification(fieldName, errorMsg, 'error');
+                    this.classList.add('is-invalid');
+                    this.value = ''; // Clear the input
+                    return;
+                }
+
+                // Success notification
+                const successMsg = `✓ File "${file.name}" (${formatFileSize(file.size)}) selected successfully`;
+                showFileNotification(fieldName, successMsg, 'success');
+                this.classList.remove('is-invalid');
+            });
+
+            // Add file input focus/blur handlers for better UX
+            input.addEventListener('focus', function() {
+                document.querySelector(`.${this.dataset.field}-notification`).classList.add('d-none');
+            });
+        });
+
+        // Add validation on form submission
+        document.getElementById('applicant-form').addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            fileInputs.forEach(input => {
+                if (input.classList.contains('is-invalid')) {
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                const firstInvalidFile = document.querySelector('input.file-input.is-invalid');
+                if (firstInvalidFile) {
+                    firstInvalidFile.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+                return false;
+            }
+        }, {capture: true}); // Use capture phase to run before other listeners
     })();
 </script>
 @endpush
