@@ -36,8 +36,12 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware('auth:admin')->group(function () {
 
-        // Category selection — shown after login before applicant form
-        Route::get('applicants/select-category', [AdminController::class, 'selectCategory'])->name('admin.applicants.select_category');
+        // Category selection
+        Route::get('applicants/select-category', [\App\Http\Controllers\AdminApplicantController::class, 'selectCategory'])->name('admin.applicants.select-category');
+        Route::post('applicants/select-category', [\App\Http\Controllers\AdminApplicantController::class, 'storeCategory'])->name('admin.applicants.store-category');
+
+        // My applications (past FY view)
+        Route::get('applicants/my-applications', [\App\Http\Controllers\AdminApplicantController::class, 'myApplications'])->name('admin.applicants.my-applications');
 
         // Applicant routes
         Route::get('applicants/create', [\App\Http\Controllers\AdminApplicantController::class, 'create'])->name('admin.applicants.create');
@@ -56,7 +60,6 @@ Route::prefix('admin')->group(function () {
         Route::get('dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
 
-        // Admin management (super admin only)
         Route::get('admins', [AdminController::class, 'index'])->name('admin.admins.index');
         Route::get('admins/{admin}', [AdminController::class, 'show'])->name('admin.admins.show');
 

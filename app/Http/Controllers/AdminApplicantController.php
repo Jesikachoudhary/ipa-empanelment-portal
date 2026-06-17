@@ -23,6 +23,55 @@ use OpenSpout\Common\Entity\Cell\StringCell;
 
 class AdminApplicantController extends Controller
 {
+    public function selectCategory()
+    {
+        $currentFy = Applicant::getCurrentFinancialYear();
+
+        $existingApplicants = Applicant::where('admin_id', auth('admin')->id())
+            ->where('application_fy', $currentFy)
+            ->get()->keyBy('applicant_type');
+
+        return view('admin.applicants.select-category', [
+            'existingApplicant' => $existingApplicants,
+            'currentFy'         => $currentFy,
+            'viewFy'            => $currentFy,
+        ]);
+    }
+
+    public function storeCategory(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:consultant,young_professional,startups',
+        ]);
+
+        session(['applicant_type' => $request->input('type')]);
+
+        return redirect()->route('admin.applicants.create');
+    }
+
+    public function myApplications(Request $request)
+    {
+        $adminId    = auth('admin')->id();
+        $currentFy  = Applicant::getCurrentFinancialYear();
+        $fy         = $request->input('fy');
+
+        if (!$fy || $fy === $currentFy) {
+            return redirect()->route('admin.applicants.select-category');
+        }
+
+        $applications = Applicant::where('admin_id', $adminId)
+            ->where('application_fy', $fy)
+            ->orderBy('applicant_type')
+            ->get();
+
+        return view('admin.applicants.my-applications', [
+            'applications' => $applications,
+            'fy'           => $fy,
+            'currentFy'    => $currentFy,
+        ]);
+    }
+
+
     public function create()
     {
         // Prevent creating more than one application per admin: redirect to edit if exists
