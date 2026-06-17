@@ -13,7 +13,7 @@ Route::get('/', function () {
 // Admin routes
 Route::prefix('admin')->group(function () {
     Route::get('login', [AdminAuthController::class, 'showLogin'])->name('admin.login');
-    Route::post('login', [AdminAuthController::class, 'login'])->name('admin.login.post');
+    Route::post('login', [AdminAuthController::class, 'login'])->middleware('throttle:5,1')->name('admin.login.post');
 
     Route::get('register', [AdminAuthController::class, 'showRegister'])->name('admin.register');
     Route::post('register', [AdminAuthController::class, 'register'])->name('admin.register.post');

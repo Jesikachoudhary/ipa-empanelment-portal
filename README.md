@@ -1,59 +1,99 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# IPA Empanelment Portal
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel-based admin portal for the **Indian Ports Association (IPA) Center of Excellence** empanelment process. It lets professionals register, verify their email, and submit an Expression of Interest (EOI) with their education and work experience, while super-admins review, edit, and export applicant records.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Admin authentication** — registration, login, logout, and password reset with a dedicated `admin` auth guard (separate from the default user guard).
+- **Email verification** — a 6-digit code is emailed on registration and expires after 48 hours; unverified accounts cannot log in.
+- **Role-based access** — regular admins can create and manage their own application; super-admins can view, edit, delete, and export *all* applicants. Enforced via the `admin.super` middleware.
+- **Applicant management** — name, address, contact, category selection, multiple education entries, and multiple experience entries, plus resume and additional-document uploads (PDF/DOC/DOCX).
+- **CSV export** — super-admins can export the full applicant list.
+- **Security hardening** — bcrypt password hashing (12 rounds), session regeneration on login/logout, login rate-limiting, encrypted route keys so applicant IDs are never exposed in URLs, and mass-assignment protection.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Tech Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Laravel 12 (PHP 8.2+) |
+| Database | MySQL |
+| Frontend | Blade templates, Bootstrap-based admin theme |
+| Build | Vite |
+| Deployment | Docker / Docker Compose (optional) |
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## Getting Started (Local)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+# 1. Install dependencies
+composer install
+npm install
 
-### Premium Partners
+# 2. Environment
+cp .env.example .env
+php artisan key:generate
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# 3. Configure your database in .env
+#    DB_DATABASE=empanelmentadmin
+#    DB_USERNAME=root
+#    DB_PASSWORD=
 
-## Contributing
+# 4. Run migrations
+php artisan migrate
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# 5. Build assets and serve
+npm run dev
+php artisan serve
+```
 
-## Code of Conduct
+The app runs at `http://localhost:8000`. The admin area lives under `/admin`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+> Mail is set to the `log` driver by default, so verification codes appear in `storage/logs/laravel.log` during local development.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Docker
 
-## License
+A Docker setup is included. See [`DOCKER_SETUP.md`](DOCKER_SETUP.md) for full instructions.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+cp .env.docker.example .env.docker
+docker-compose up -d
+```
+
+---
+
+## Project Structure
+
+```
+app/
+  Http/Controllers/   # Auth, applicant, and admin management controllers
+  Http/Middleware/    # AdminSuper (role enforcement), Authenticate
+  Models/             # Admin, Applicant, ApplicantEducation, ApplicantExperience
+  Notifications/      # Registration + password reset emails
+database/migrations/  # Schema (admins, applicants, education, experience, etc.)
+resources/views/admin # Blade views for the portal
+routes/web.php        # All routes
+tests/Feature/        # Feature tests
+```
+
+---
+
+## Testing
+
+```bash
+php artisan test
+```
+
+See [`APPLICANT_GUIDE.md`](APPLICANT_GUIDE.md) for the end-user walkthrough.
+
+---
+
+## Author
+
+Jesika Choudhary — B.Tech Information Technology, Manipal University Jaipur.
