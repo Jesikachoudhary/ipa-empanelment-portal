@@ -4,70 +4,88 @@
 
 @push('styles')
 <style>
-    .category-hero {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .cat-hero {
+        background: linear-gradient(135deg, #2c3e7a 0%, #4a5568 100%);
         color: #fff;
-        padding: 40px 20px 30px;
-        text-align: center;
+        padding: 30px 30px 25px;
         margin: -20px -20px 30px;
     }
-    .category-hero h2 { font-weight: 700; font-size: 26px; margin-bottom: 6px; }
-    .category-hero p  { opacity: .9; font-size: 15px; margin: 0; }
+    .cat-hero h2 {
+        font-weight: 700;
+        font-size: 28px;
+        margin-bottom: 6px;
+    }
+    .cat-hero .fy {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        opacity: .95;
+    }
+    .cat-hero .fy span {
+        font-weight: 400;
+        opacity: .85;
+    }
+    .cat-hero p {
+        font-size: 14px;
+        opacity: .85;
+        margin: 0;
+    }
 
-    .category-card {
-        border: 2px solid #e0e0e0;
+    .cat-card {
         border-radius: 16px;
-        padding: 36px 24px;
+        padding: 40px 28px 32px;
         text-align: center;
-        transition: all .25s ease;
         cursor: pointer;
         height: 100%;
-        background: #fff;
-        text-decoration: none;
         display: block;
-        color: inherit;
-    }
-    .category-card:hover {
-        border-color: #667eea;
-        box-shadow: 0 8px 30px rgba(102,126,234,.2);
-        transform: translateY(-4px);
         text-decoration: none;
-        color: inherit;
+        color: #fff;
+        position: relative;
+        transition: transform .2s ease, box-shadow .2s ease;
+        overflow: hidden;
     }
-    .category-card .icon {
-        font-size: 52px;
+    .cat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(0,0,0,.25);
+        color: #fff;
+        text-decoration: none;
+    }
+    .cat-card .icon {
+        font-size: 56px;
         margin-bottom: 16px;
         display: block;
     }
-    .category-card h4 {
+    .cat-card h4 {
         font-weight: 700;
-        font-size: 20px;
+        font-size: 22px;
         margin-bottom: 10px;
-        color: #2d2d2d;
+        color: #fff;
     }
-    .category-card p {
+    .cat-card p {
         font-size: 13px;
-        color: #777;
+        opacity: .85;
         line-height: 1.6;
         margin: 0;
     }
-    .category-card .badge-pill {
-        margin-top: 16px;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: #fff;
-        padding: 6px 18px;
-        border-radius: 50px;
+    .cat-card .applied-badge {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255,255,255,.2);
+        border: 1px solid rgba(255,255,255,.5);
+        border-radius: 20px;
+        padding: 4px 14px;
         font-size: 12px;
         font-weight: 600;
-        display: inline-block;
+        white-space: nowrap;
     }
-    .card-consultant:hover  { border-color: #667eea; }
-    .card-young:hover       { border-color: #f093fb; }
-    .card-startup:hover     { border-color: #4facfe; }
 
-    .card-consultant .badge-pill  { background: linear-gradient(135deg,#667eea,#764ba2); }
-    .card-young .badge-pill       { background: linear-gradient(135deg,#f093fb,#f5576c); }
-    .card-startup .badge-pill     { background: linear-gradient(135deg,#4facfe,#00f2fe); }
+    .card-consultant  { background: linear-gradient(135deg, #2980b9 0%, #3d6cc0 100%); }
+    .card-young       { background: linear-gradient(135deg, #6c5ce7 0%, #a55eea 100%); }
+    .card-startup     { background: linear-gradient(135deg, #e84393 0%, #c0392b 100%); }
+
+    .col-cat { margin-bottom: 24px; }
 </style>
 @endpush
 
@@ -86,50 +104,71 @@
 @endsection
 
 @section('content')
-<div class="category-hero">
-    <h2>Expression of Interest — IPA Center of Excellence</h2>
-    <p>Please select the category that best describes your profile to proceed with your application.</p>
+
+<div class="cat-hero">
+    <h2>Select Your Applicant Category</h2>
+    <div class="fy">Financial Year: 2026-2027 <span>(1 Apr 2026 – 31 Mar 2027)</span></div>
+    <p>Choose the category that best describes your profile to proceed with your application</p>
 </div>
 
-@if(session('info'))
-    <div class="alert alert-info alert-dismissible fade show" role="alert">
-        {{ session('info') }}
-        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
-    </div>
+@if(session('success') || session('status'))
+<div class="alert alert-success alert-dismissible" role="alert">
+    <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    <strong>✓ SUCCESS!</strong> {{ session('success') ?? session('status') }}
+</div>
 @endif
 
-<div class="row justify-content-center">
+@if(session('info'))
+<div class="alert alert-info alert-dismissible" role="alert">
+    <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    {{ session('info') }}
+</div>
+@endif
+
+@php
+    $existing = auth('admin')->user()->applicant ?? null;
+    $appliedCategories = $existing ? (array)($existing->categories ?? []) : [];
+    $hasApplied = !empty($appliedCategories);
+@endphp
+
+<div class="row">
 
     {{-- Consultant --}}
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 col-cat">
         <a href="{{ route('admin.applicants.create', ['category' => 'consultant']) }}"
-           class="category-card card-consultant">
-            <span class="icon">🧑‍💼</span>
+           class="cat-card card-consultant">
+            <span class="icon">👔</span>
             <h4>Consultant</h4>
-            <p>Experienced professionals offering advisory, technical, or management consulting services to port and maritime sectors.</p>
-            <span class="badge-pill">Apply as Consultant →</span>
+            <p>Independent consultant or consulting professional</p>
+            @if($hasApplied)
+                <span class="applied-badge">✓ Applied for 2026-2027</span>
+            @endif
         </a>
     </div>
 
     {{-- Young Professional --}}
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 col-cat">
         <a href="{{ route('admin.applicants.create', ['category' => 'young_professional']) }}"
-           class="category-card card-young">
-            <span class="icon">🎓</span>
+           class="cat-card card-young">
+            <span class="icon">🚀</span>
             <h4>Young Professional</h4>
-            <p>Early-career individuals with up to 5 years of experience looking to contribute fresh perspectives to IPA projects.</p>
-            <span class="badge-pill" style="background:linear-gradient(135deg,#f093fb,#f5576c);">Apply as Young Professional →</span>
+            <p>Early career professional with passion for growth</p>
+            @if($hasApplied)
+                <span class="applied-badge">✓ Applied for 2026-2027</span>
+            @endif
         </a>
     </div>
 
     {{-- Startup --}}
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 col-cat">
         <a href="{{ route('admin.applicants.create', ['category' => 'startup']) }}"
-           class="category-card card-startup">
-            <span class="icon">🚀</span>
+           class="cat-card card-startup">
+            <span class="icon">💡</span>
             <h4>Startup</h4>
-            <p>Innovative startups with technology or service solutions relevant to ports, logistics, and maritime operations.</p>
-            <span class="badge-pill" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;">Apply as Startup →</span>
+            <p>Innovative startup with technology solutions for ports & logistics</p>
+            @if($hasApplied)
+                <span class="applied-badge">✓ Applied for 2026-2027</span>
+            @endif
         </a>
     </div>
 
